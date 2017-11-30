@@ -1,0 +1,22 @@
+################################################################################
+#
+#  file: ${HOME}/.bash_profile
+#
+#  date: 03/18/2013
+#
+#  auth: Andrew Shultzabarger
+# 
+#  desc: initialization script for interactive bash shell sessions
+#
+################################################################################
+
+
+[[ -f "${HOME}/.bashrc" ]] && . "${HOME}/.bashrc"
+
+export VIM_PATH='/usr/bin/vim'
+export SUBLIME_PATH='/usr/bin/sublime_text'
+
+SVN_EDITOR=$VIM_PATH
+VISUAL=$SUBLIME_PATH
+EDITOR=$VIM_PATH
+
