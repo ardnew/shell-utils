@@ -1,0 +1,70 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+no warnings qw| deprecated |; # $[ is deprecated
+
+my $FIRST_COL =   "A";
+my $LAST_COL  = "XFD";
+
+$[ = 1; # this may have no effect in newer version of perl,
+        # but if it resets to 0, this script still works.
+
+sub usage
+{
+  return << "USAGE"
+
+  SYNOPSIS
+
+      $0 INPUT
+
+    INPUT may be an integer value or a string of letters, but it cannot
+    contain a mixture of both.
+
+    if an integer is provided, the corresponding MS Excel column header
+    is returned. this may also be a negative integer.
+
+    if a string of letters is provided, it is interpreted as an MS Excel
+    column header, and the corresponding column index is returned.
+
+  NOTES
+ 
+    the first column "$FIRST_COL" corresponds to index "$[".
+
+USAGE
+}
+
+chomp( my $val = @ARGV > 0 ? shift : <> );
+
+if ($val =~ /^-?[0-9]+$/)
+{
+  # user provided index, convert it to column header
+  my @col = $FIRST_COL .. $LAST_COL;
+  my $min = -~~@col;
+  my $max = $#col;
+
+  die sprintf
+      "error: invalid column index: %s (valid range = [%d, %d])$/",
+      $val, $min, $max
+    unless $min <= $val and $val <= $max;
+
+  printf "%s$/", $col[$val];
+}
+elsif ($val =~ /^[A-Z]+$/i)
+{
+  # user provided column header, convert it to index
+  my $ord = sprintf "%*s", length $LAST_COL, $val;
+
+  die sprintf
+      "error: invalid column header: %s (valid range = [%s, %s])$/",
+      $val, $FIRST_COL, $LAST_COL
+    unless -1 < do { $LAST_COL cmp $ord }
+      and length $LAST_COL >= length $val;
+
+  printf "%d$/", $#{[$FIRST_COL .. $val]};
+}
+else
+{
+  # user provided some mixture of letters and numbers
+  die sprintf "error: invalid input: %s$/%s", $val, usage;
+}

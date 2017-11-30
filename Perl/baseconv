@@ -1,0 +1,104 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+
+my $DEFAULT_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+my $CONSTRUCT_FROM   = 0;
+my $CONSTRUCT_TO     = 1;
+
+sub usage
+{
+  return <<"USAGE"
+usage:
+
+  $0 <from-base> [--from-alphabet <alphabet>] <to-base> [--to-alphabet <alphabet>] <value>
+
+  converts a given value <value> from base <from-base> to base <to-base>. optionally accepts
+  custom alphabets upon which the values should be constructed. if no alphabet is provided,
+  the default base-36 alphabet "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ" is used.
+
+  required arguments:
+
+    from-base           : the base, given in decimal, of the provided input value <value>
+
+    to-base             : the base, given in decimal, of the desired output value <value>
+
+    value               : the value, given in base <from-base>, to be converted to base <to-base>
+
+  options:
+
+    --from-alphabet|-f  : the alphabet, given as a string, defining the value of each symbol in
+                        : the input value <value> by its position in the alphabet. see example.
+
+    --to-alphabet|-t    : the alphabet, given as a string, defining the value of each symbol in
+                        : the output value by its position in the alphabet. see example.
+
+  example:
+
+    to convert the binary (base-2) value 1011 to english alphabet positional value (base-26):
+
+      $0 2 26 -t "ABCDEFGHIJKLMNOPQRSTUVWXYZ" 1011
+
+USAGE
+}
+
+sub constructdict($$)
+{
+  my ($alphabet, $construction) = @_;
+
+  $alphabet = $DEFAULT_ALPHABET
+    unless defined $alphabet and length $alphabet > 0;
+
+  my $count = 0;
+
+  return map { 
+      $CONSTRUCT_FROM == $construction 
+        ? ( $_ => $count++ )
+        : ( $count++ => $_ )
+    } 
+    split //, $alphabet;
+}
+
+sub todecimal($$$)
+{
+  my ($val, $base, $dict, $result) = (@_, 0);
+
+  my @dig = split //, $val;
+
+  $result += $$dict{$_} * $base ** @dig
+    while defined($_ = shift @dig);
+
+  return $result;
+}
+
+sub fromdecimal($$$)
+{
+  my ($val, $base, $dict, $result) = (@_, "");
+
+  {
+    use integer;
+    $result = $$dict{$val % $base} . $result, 
+      $val /= $base
+        while $val;
+  }
+
+  return $result;
+}
+
+my ($fromalphabet, $toalphabet);
+
+GetOptions('from-alphabet|f=s' => \$fromalphabet,
+           'to-alphabet|t=s'   => \$toalphabet,);
+
+die usage unless @ARGV >= 3;
+
+my ($from, $to, $val) = @ARGV;
+
+my %fromdict = constructdict $fromalphabet, $CONSTRUCT_FROM;
+my %todict   = constructdict $toalphabet, $CONSTRUCT_TO;
+
+my $decimal = todecimal $val, $from, \%fromdict;
+print fromdecimal $decimal, $to, \%todict;
+

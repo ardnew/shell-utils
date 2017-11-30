@@ -1,0 +1,416 @@
+#!/usr/bin/env perl
+#
+# DESC: script to generate new project structures for a given language
+# AUTH: ardnew
+# DATE: 05 Oct 2017
+#
+################################################################################
+
+use strict;
+use warnings;
+
+use Getopt::Long qw| :config auto_abbrev gnu_compat bundling auto_help |;
+use File::Basename;
+use File::Spec;
+use File::Copy;
+
+
+## CONSTANTS ###################################################################
+
+my $ERRKEY_UNKNOWN_OPT = "unknownopt";
+
+my $MAKEFILE_NAME = "Makefile";
+my $MAKEFILE; # see PRE-INIT BEGIN block near EOF
+
+my %MAKEFILE_VAR =
+  (
+    PROJ_BIN => quotemeta q|[[#MKPROJBIN]]|,
+    PROJ_SRC => quotemeta q|[[#MKPROJSRC]]|,
+  );
+
+my ( $MAIN_C, $MAIN_CPP, $MAIN_PERL, $MAIN_PYTHON, $MAIN_RUBY, $MAIN_DELPHI, $MAIN_JAVA, $MAIN_ADA );
+
+my %LANGUAGE =
+  (
+    'C'      => { main_name => 'main.c',    main_file => $MAIN_C      },
+    'C++'    => { main_name => 'main.cpp',  main_file => $MAIN_CPP    },
+    'Perl'   => { main_name => 'main.pl',   main_file => $MAIN_PERL   },
+    'Python' => { main_name => 'main.py',   main_file => $MAIN_PYTHON },
+    'Ruby'   => { main_name => 'main.rb',   main_file => $MAIN_RUBY   },
+    'Delphi' => { main_name => 'main.pas',  main_file => $MAIN_DELPHI },
+    'Java'   => { main_name => 'Main.java', main_file => $MAIN_JAVA   },
+    'Ada'    => { main_name => 'main.ada',  main_file => $MAIN_ADA    },
+  );
+
+
+## GLOBALS #####################################################################
+
+my %option = # the undef is a flag indicating the option was not provided by the user
+  (
+        h_help => [ undef, qw[   help|h|?    ] ],
+     p_project => [ undef, qw[  project|p=s  ] ],
+    l_language => [ undef, qw[ language|l=s  ] ],
+    m_mainfile => [ undef, qw[ mainfile|m=s  ] ],
+      s_source => [ undef, qw[   source|s=s@ ] ],
+     v_verbose => [ undef, qw[  verbose|v+   ] ],
+  );
+
+
+## LOCAL SUBS ##################################################################
+
+sub usage
+{
+  my ($error)  = @_;
+  my $scpname = basename __FILE__;
+  my $errinfo  = "";
+
+  if (exists $$error{$ERRKEY_UNKNOWN_OPT})
+  {
+    $errinfo .= "WARNING: unknown option: -$_" . $/ for @{$$error{$ERRKEY_UNKNOWN_OPT}};
+  }
+
+  sprintf "%s$/%s", $errinfo, <<USAGE
+$scpname -- create a new Makefile project
+
+usage:
+
+	perl $scpname --project|-p PROJ --language|-l LANG [--mainfile|-m MAIN] [--source|-s SRC1 SRC2 ...] [--verbose|-v]
+	perl $scpname [--help|-h|-?]
+
+USAGE
+}
+
+sub getlanguage
+{
+  my ($lang) = @_;
+
+  for my $curr (keys %LANGUAGE)
+  {
+    my $pattern = quotemeta $curr;
+
+    return $curr if $lang =~ /^\s*$pattern\s*$/i;
+  }
+
+  return undef;
+}
+
+sub validprojname
+{
+  my ($name) = @_;
+
+  (undef, undef, $name) =
+    File::Spec->splitpath(File::Spec->rel2abs($name));
+
+  $name =~ s/^\s*//;
+  $name =~ s/\s*$//;
+  $name =~ m/^[\w\.]+$/;
+}
+
+sub isdirused
+{
+  my ($dir) = @_;
+
+  return 0 if not -e $dir or
+              not -d $dir or
+              not opendir my ($dh), $dir;
+
+  # the "." and ".." virtual dirs
+  readdir $dh; readdir $dh;
+
+  my $isused = !! readdir $dh;
+  close $dh;
+
+  return $isused;
+}
+
+sub mkprojdir
+{
+  my ($projname) = @_;
+
+  my $projdir =
+    File::Spec->catdir(File::Spec->rel2abs(File::Spec->curdir), $projname);
+
+  die "error: project names must be alphanumeric: $projdir$/"
+    unless validprojname($projdir);
+
+  die "error: non-empty project directory already exists: $projdir$/"
+    if isdirused($projdir);
+
+  mkdir $projdir unless -d $projdir;
+
+  return $projdir;
+}
+
+sub mkmainfile
+{
+  my ($projdir, $mainfile) = @_;
+
+  my $mainpath =
+    File::Spec->catfile(File::Spec->rel2abs($projdir), $mainfile);
+
+  die "error: main file names must be alphanumeric: $mainfile$/"
+    unless validprojname($mainfile);
+
+  open my $fh, ">", $mainpath
+    or die "error: cannot create file: $mainpath: $!$/";
+
+  close $fh;
+
+  return $mainpath;
+}
+
+sub writemain
+{
+  my ($mainpath, $maindata) = @_;
+
+  open my $fh, ">", $mainpath
+    or die "error: cannot create file: $mainpath: $!$/";
+
+  print $fh $maindata;
+
+  close $fh;
+}
+
+sub writemake
+{
+  my ($mainpath, $makename, $makefile, $source) = @_;
+
+  my ($vol, $dir, $main) = File::Spec->splitpath($mainpath);
+
+  my $makepath = File::Spec->catfile($dir, $makename);
+
+  # determine the project name from the project directory name
+  my ($bin) = reverse grep { (length) } File::Spec->splitdir($dir);
+
+  open my $fh, ">", $makepath
+    or die "error: cannot create Makefile: $makepath: $!$/";
+
+  # pretty formatting, keep all the newline escapes lined up
+  my ($long) = sort { length $b <=> length $a } $main, @{$source};
+
+  my $src = join " \\\n    ", map { sprintf "%-*s", length $long, $_ } $main, @{$source};
+
+  {
+    $makefile =~ s/$MAKEFILE_VAR{PROJ_BIN}/lc $bin/emsg;
+    $makefile =~ s/$MAKEFILE_VAR{PROJ_SRC}/$src/msg;
+  }
+
+  print $fh $makefile;
+
+  close $fh;
+
+}
+
+
+## MAINLINE ####################################################################
+
+{
+  my %error;
+
+  local $SIG{__WARN__} =
+    sub # may be called multiple times, push each onto the error stack
+    {
+      my ($err) = @_;
+
+      push @{$error{$ERRKEY_UNKNOWN_OPT}}, $1
+        if $err =~ /^\s*Unknown option:\s*(.+)\s$/;
+    };
+
+  die usage(\%error) unless
+    # keep the hash key as option name, overwrite the first arrayref value with the user's args
+    Getopt::Long::GetOptions(\%option,
+      map { ${$option{$_}}[1] => \${$option{$_}}[0] } keys %option)
+}
+
+# replace the arrayrefs with the first element (i.e. the user's args or undef if not provided)
+%option = map { $_ => ${$option{$_}}[0] || undef  } keys %option;
+
+# remove any options not provided by the user, so we can use exists() to test options
+delete @option{ grep { not defined $option{$_} } keys %option };
+
+# ensure we've received all required params
+die usage if
+  exists $option{h_help}
+  or not exists $option{p_project}
+  or not exists $option{l_language};
+
+my $language = getlanguage($option{l_language});
+
+die "error: unknown language: $option{l_language}$/" unless defined $language;
+
+my $projdir = mkprojdir($option{p_project});
+
+# if the user inserted commas delimiting source files, split them out into array elements
+$option{s_source} = [ split /,/, join ',', @{$option{s_source}} ]
+  if exists $option{s_source} and scalar @{$option{s_source}};
+
+for my $srcpath (@{$option{s_source}})
+{
+  die "error: source file does not exist: $srcpath$/"
+    unless -f $srcpath;
+
+  my $srcname = basename $srcpath;
+  my $count = grep { $srcname eq basename $_ } @{$option{s_source}};
+
+  die "error: name collision (duplicate file names): $srcname$/"
+    # each should exist only once in the source list
+    if $count > 1;
+}
+
+my $selectedmain = basename($option{m_mainfile} || ${$LANGUAGE{$language}}{main_name});
+my $mainpath;
+
+# don't create the main file if the user provided it
+unless (($mainpath) = grep { $selectedmain eq basename $_ } @{$option{s_source}})
+{
+  $mainpath = mkmainfile($projdir, $selectedmain);
+  writemain($mainpath, ${$LANGUAGE{$language}}{main_file});
+}
+
+writemake($mainpath, $MAKEFILE_NAME, $MAKEFILE, $option{s_source});
+
+for my $source (@{$option{s_source}})
+{
+  die "error: cannot copy source file: $source -> $projdir: $!$/"
+    unless copy($source, $projdir);
+}
+
+
+## PHASES ######################################################################
+
+BEGIN
+{
+  # source credit: https://gist.github.com/maxtruxa/4b3929e118914ccef057f8a05c614b0f
+  $MAKEFILE = <<'MAKEFILE';
+
+# output binary
+BIN := [[#MKPROJBIN]]
+
+# source files
+SRCS := \
+    [[#MKPROJSRC]]
+
+# files included in the tarball generated by 'make dist' (e.g. add LICENSE file)
+DISTFILES := $(BIN)
+
+# filename of the tar archive generated by 'make dist'
+DISTOUTPUT := $(BIN).tar.gz
+
+# intermediate directory for generated object files
+OBJDIR := .o
+# intermediate directory for generated dependency files
+DEPDIR := .d
+
+# object files, auto generated from source files
+OBJS := $(patsubst %,$(OBJDIR)/%.o,$(basename $(SRCS)))
+# dependency files, auto generated from source files
+DEPS := $(patsubst %,$(DEPDIR)/%.d,$(basename $(SRCS)))
+
+# compilers (at least gcc and clang) don't create the subdirectories automatically
+$(shell mkdir -p $(dir $(OBJS)) >/dev/null)
+$(shell mkdir -p $(dir $(DEPS)) >/dev/null)
+
+#CROSS := i686-pc-mingw32-
+#CROSS := /usr/local/gnat-x86_64-darwin/bin/
+CC    := $(CROSS)gcc
+CXX   := $(CROSS)g++
+LD    := $(CROSS)gcc
+AR    := $(CROSS)ar
+RM    := rm
+TAR   := tar
+
+# add other macro defines by calling make with a USER_DEFINES argument
+#  e.g. [ make USER_DEFINES='BLAH FOO="bar"' ] will add the string "-DBLAH -DFOO=bar" to your CFLAGS
+UFLAGS   := $(addprefix -D,$(USER_DEFINES))
+DBGFLAGS := -ggdb3 -gno-strict-dwarf -pg
+
+CFLAGS   := -std=c99
+CXXFLAGS := -std=c++11
+CPPFLAGS := $(DBGFLAGS) -Wall -Wextra -pedantic $(UFLAGS)
+LDFLAGS  :=
+
+# flags required for dependency generation; passed to compilers
+DEPFLAGS    = -MT $@ -MD -MP -MF $(DEPDIR)/$*.Td
+COMPILE.c   = $(CC) $(DEPFLAGS) $(CFLAGS) $(CPPFLAGS) -c -o $@
+COMPILE.cc  = $(CXX) $(DEPFLAGS) $(CXXFLAGS) $(CPPFLAGS) -c -o $@
+LINK.o      = $(LD) $(LDFLAGS) $(LDLIBS) -o $@
+
+PRECOMPILE  =
+POSTCOMPILE = mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d
+
+all: $(BIN)
+
+dist: $(DISTFILES)
+	$(TAR) -cvzf $(DISTOUTPUT) $^
+
+.PHONY: clean
+clean:
+	$(RM) -r $(OBJDIR) $(DEPDIR)
+
+.PHONY: distclean
+distclean: clean
+	$(RM) $(BIN) $(DISTOUTPUT)
+
+.PHONY: install
+install:
+	@echo no install tasks configured
+
+.PHONY: uninstall
+uninstall:
+	@echo no uninstall tasks configured
+
+.PHONY: check
+check:
+	@echo no tests configured
+
+.PHONY: help
+help:
+	@echo available targets: all dist clean distclean install uninstall check
+
+$(BIN): $(OBJS)
+	$(LINK.o) $^
+
+$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c $(DEPDIR)/%.d
+	$(PRECOMPILE)
+	$(COMPILE.c) $<
+	$(POSTCOMPILE)
+
+$(OBJDIR)/%.o: %.cpp
+$(OBJDIR)/%.o: %.cpp $(DEPDIR)/%.d
+	$(PRECOMPILE)
+	$(COMPILE.cc) $<
+	$(POSTCOMPILE)
+
+$(OBJDIR)/%.o: %.cc
+$(OBJDIR)/%.o: %.cc $(DEPDIR)/%.d
+	$(PRECOMPILE)
+	$(COMPILE.cc) $<
+	$(POSTCOMPILE)
+
+$(OBJDIR)/%.o: %.cxx
+$(OBJDIR)/%.o: %.cxx $(DEPDIR)/%.d
+	$(PRECOMPILE)
+	$(COMPILE.cc) $<
+	$(POSTCOMPILE)
+
+.PRECIOUS = $(DEPDIR)/%.d
+$(DEPDIR)/%.d: ;
+
+-include $(DEPS)
+
+MAKEFILE
+
+  $MAIN_C = <<'SOURCE';
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main(int argc, char *argv[])
+{
+  return 0;
+}
+
+SOURCE
+
+}

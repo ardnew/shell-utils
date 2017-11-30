@@ -1,0 +1,209 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use ardnew::IO qw| :all |;
+
+my @chardesc =
+  (
+    [ 'NUL',   'null'                      ], #   0
+    [ 'SOH',   'start of heading'          ], #   1
+    [ 'STX',   'start of text'             ], #   2
+    [ 'ETX',   'end of text'               ], #   3
+    [ 'EOT',   'end of transmission'       ], #   4
+    [ 'ENQ',   'enquiry'                   ], #   5
+    [ 'ACK',   'acknowledge'               ], #   6
+    [ 'BEL',   'bell'                      ], #   7
+    [ 'BS',    'backspace'                 ], #   8
+    [ 'TAB',   'horizontal tab'            ], #   9
+    [ 'LF',    'line feed'                 ], #  10
+    [ 'VT',    'vertical tab'              ], #  11
+    [ 'FF',    'form feed'                 ], #  12
+    [ 'CR',    'carriage return'           ], #  13
+    [ 'SO',    'shift out'                 ], #  14
+    [ 'SI',    'shift in'                  ], #  15
+    [ 'DLE',   'data link escape'          ], #  16
+    [ 'DC1',   'device control 1'          ], #  17
+    [ 'DC2',   'device control 2'          ], #  18
+    [ 'DC3',   'device control 3'          ], #  19
+    [ 'DC4',   'device control 4'          ], #  20
+    [ 'NAK',   'negative acknowledge'      ], #  21
+    [ 'SYN',   'synchronous idle'          ], #  22
+    [ 'ETB',   'end of transmission block' ], #  23
+    [ 'CAN',   'cancel'                    ], #  24
+    [ 'EM',    'end of medium'             ], #  25
+    [ 'SUB',   'substitute'                ], #  26
+    [ 'ESC',   'escape'                    ], #  27
+    [ 'FS',    'file separator'            ], #  28
+    [ 'GS',    'group separator'           ], #  29
+    [ 'RS',    'record separator'          ], #  30
+    [ 'US',    'unit separator'            ], #  31
+    [ 'SPACE',                             ], #  32
+    [ '!',                                 ], #  33
+    [ '"',                                 ], #  34
+    [ '#',                                 ], #  35
+    [ '$',                                 ], #  36
+    [ '%',                                 ], #  37
+    [ '&',                                 ], #  38
+    [ '\'',                                ], #  39
+    [ '(',                                 ], #  40
+    [ ')',                                 ], #  41
+    [ '*',                                 ], #  42
+    [ '+',                                 ], #  43
+    [ ',',                                 ], #  44
+    [ '-',                                 ], #  45
+    [ '.',                                 ], #  46
+    [ '/',                                 ], #  47
+    [ '0',                                 ], #  48
+    [ '1',                                 ], #  49
+    [ '2',                                 ], #  50
+    [ '3',                                 ], #  51
+    [ '4',                                 ], #  52
+    [ '5',                                 ], #  53
+    [ '6',                                 ], #  54
+    [ '7',                                 ], #  55
+    [ '8',                                 ], #  56
+    [ '9',                                 ], #  57
+    [ ':',                                 ], #  58
+    [ ';',                                 ], #  59
+    [ '<',                                 ], #  60
+    [ '=',                                 ], #  61
+    [ '>',                                 ], #  62
+    [ '?',                                 ], #  63
+    [ '@',                                 ], #  64
+    [ 'A',                                 ], #  65
+    [ 'B',                                 ], #  66
+    [ 'C',                                 ], #  67
+    [ 'D',                                 ], #  68
+    [ 'E',                                 ], #  69
+    [ 'F',                                 ], #  70
+    [ 'G',                                 ], #  71
+    [ 'H',                                 ], #  72
+    [ 'I',                                 ], #  73
+    [ 'J',                                 ], #  74
+    [ 'K',                                 ], #  75
+    [ 'L',                                 ], #  76
+    [ 'M',                                 ], #  77
+    [ 'N',                                 ], #  78
+    [ 'O',                                 ], #  79
+    [ 'P',                                 ], #  80
+    [ 'Q',                                 ], #  81
+    [ 'R',                                 ], #  82
+    [ 'S',                                 ], #  83
+    [ 'T',                                 ], #  84
+    [ 'U',                                 ], #  85
+    [ 'V',                                 ], #  86
+    [ 'W',                                 ], #  87
+    [ 'X',                                 ], #  88
+    [ 'Y',                                 ], #  89
+    [ 'Z',                                 ], #  90
+    [ '[',                                 ], #  91
+    [ '\\',                                ], #  92
+    [ ']',                                 ], #  93
+    [ '^',                                 ], #  94
+    [ '_',                                 ], #  95
+    [ '`',                                 ], #  96
+    [ 'a',                                 ], #  97
+    [ 'b',                                 ], #  98
+    [ 'c',                                 ], #  99
+    [ 'd',                                 ], # 100
+    [ 'e',                                 ], # 101
+    [ 'f',                                 ], # 102
+    [ 'g',                                 ], # 103
+    [ 'h',                                 ], # 104
+    [ 'i',                                 ], # 105
+    [ 'j',                                 ], # 106
+    [ 'k',                                 ], # 107
+    [ 'l',                                 ], # 108
+    [ 'm',                                 ], # 109
+    [ 'n',                                 ], # 110
+    [ 'o',                                 ], # 111
+    [ 'p',                                 ], # 112
+    [ 'q',                                 ], # 113
+    [ 'r',                                 ], # 114
+    [ 's',                                 ], # 115
+    [ 't',                                 ], # 116
+    [ 'u',                                 ], # 117
+    [ 'v',                                 ], # 118
+    [ 'w',                                 ], # 119
+    [ 'x',                                 ], # 120
+    [ 'y',                                 ], # 121
+    [ 'z',                                 ], # 122
+    [ '{',                                 ], # 123
+    [ '|',                                 ], # 124
+    [ '}',                                 ], # 125
+    [ '~',                                 ], # 126
+    [ 'DEL',                               ], # 127
+  );
+
+my $NUM_COL = 4;
+my $NUM_ROW = int(@chardesc / $NUM_COL);
+my $PAD_COL = 6;
+my $FMT_COL = ' ' x $PAD_COL . '[ %s ]';
+
+pout $/;
+
+poutf $FMT_COL x $NUM_COL,
+  map { sprintf '%3s %4s %4s %6s', 'DEC', 'HEX', 'OCT', 'CHAR' } 1 .. $NUM_COL;
+poutf $FMT_COL x $NUM_COL,
+  map { sprintf '%3s+%4s+%4s+%6s', '---', '----', '----', '------' } 1 .. $NUM_COL;
+
+for my $row (0 .. $NUM_ROW - 1)
+{
+  poutf $FMT_COL x $NUM_COL,
+    map 
+    { 
+      my $e = $chardesc[$_ = $row + $_ * $NUM_ROW];
+      sprintf '%-3d 0x%02X o%03o %6s', $_, $_, $_, $$e[0]
+    } 
+    0 .. $NUM_COL - 1;
+}
+
+pout $/;
+
+pout <<'TABLE';
+/------------+--------------+------+------+--------+------------------------------------+-------------------------------------\
+|   POSIX    | Non-standard | Perl | Ruby |  vim   |              ASCII                 |           Description               |
++------------+--------------+------+------+--------+------------------------------------+-------------------------------------+
+|            |              |      |      |        |                                    |                                     |
+| [:alnum:]  |      --      |  --  |  --  |   --   | [A-Za-z0-9]                        | alphanumeric                        |
+|            |              |      |      |        |                                    |                                     |
+|     --     |   [:word:]   |  \w  |  \w  |   \w   | [A-Za-z0-9_]                       | word (alphanumeric with underscore) |
+|            |              |      |      |        |                                    |                                     |
+|     --     |      --      |  \W  |  \W  |   \W   | [^A-Za-z0-9_]                      | non-word                            |
+|            |              |      |      |        |                                    |                                     |
+| [:alpha:]  |      --      |  --  |  --  |   \a   | [A-Za-z]                           | alphabetic                          |
+|            |              |      |      |        |                                    |                                     |
+|     --     |   [:ascii:]  |  --  |  --  |   --   | [\x00-\x7F]                        | ASCII standard                      |
+|            |              |      |      |        |                                    |                                     |
+| [:blank:]  |      --      |  --  |  --  |   \s   | [ \t]                              | space and tab                       |
+|            |              |      |      |        |                                    |                                     |
+|     --     |      --      |  \b  |  --  | \< \>  | (?<=\W)(?=\w)|(?<=\w)(?=\W)        | word boundary                       |
+|            |              |      |      |        |                                    |                                     |
+| [:cntrl:]  |      --      |  --  |  --  |   --   | [\x00-\x1F\x7F]                    | control character                   |
+|            |              |      |      |        |                                    |                                     |
+| [:digit:]  |      --      |  \d  |  \d  |   \d   | [0-9]                              | digit                               |
+|            |              |      |      |        |                                    |                                     |
+|     --     |      --      |  \D  |  \D  |   \D   | [^0-9]                             | non-digit                           |
+|            |              |      |      |        |                                    |                                     |
+| [:graph:]  |      --      |  --  |  --  |   --   | [\x21-\x7E]                        | visible                             |
+|            |              |      |      |        |                                    |                                     |
+| [:lower:]  |      --      |  --  |  --  |   \l   | [a-z]                              | lowercase alphabetic                |
+|            |              |      |      |        |                                    |                                     |
+| [:print:]  |      --      |  --  |  --  |   \p   | [\x20-\x7E]                        | printable (visible with space)      |
+|            |              |      |      |        |                                    |                                     |
+| [:punct:]  |      --      |  --  |  --  |   --   | [][!"#$%&'()*+,./:;<=>?@\^_`{|}~-] | punctuation                         |
+|            |              |      |      |        |                                    |                                     |
+| [:space:]  |      --      |  \s  |  \s  |   \_s  | [ \t\r\n\v\f]                      | whitespace                          |
+|            |              |      |      |        |                                    |                                     |
+|     --     |      --      |  \S  |  \S  |   --   | [^ \t\r\n\v\f]                     | non-whitespace                      |
+|            |              |      |      |        |                                    |                                     |
+| [:upper:]  |      --      |  --  |  --  |   \u   | [A-Z]                              | uppercase alphabetic                |
+|            |              |      |      |        |                                    |                                     |
+| [:xdigit:] |      --      |  --  |  \h  |   \x   | [A-Fa-f0-9]                        | hexadecimal digit                   |
+|            |              |      |      |        |                                    |                                     |
+|     --     |      --      |  --  |  \H  |   --   | [^A-Fa-f0-9]                       | non-hexadecimal digit               |
+|            |              |      |      |        |                                    |                                     |
+\------------+--------------+------+------+--------+------------------------------------+-------------------------------------/
+TABLE

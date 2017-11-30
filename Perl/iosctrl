@@ -1,0 +1,1747 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+$::VERSION = 1.1;
+
+use Data::Dumper;
+
+use Getopt::Long qw| :config auto_abbrev bundling_override no_ignore_case auto_version |; # perl core
+
+use Mac::PropertyList qw| :all |; # CPAN
+
+use ardnew::IO qw| :all |;
+use ardnew::Lists qw| :all |;
+use ardnew::Files qw| :all |;
+use ardnew::Util qw| :all |;
+
+$| = 1; # autoflush on write
+
+use constant
+  {
+    _HEADER_COLOR => "blue",
+    _ERROR_COLOR => "red",
+  };
+
+my %OPCMD =
+  (
+    clean  => qr(clean|release)i,
+    build  => qr(build|release)i,
+  );
+
+my $VERBOSITY = 0; # global, don't ever write to it after the GetOpt call.
+
+my $ROW_WIDTH_MIN = 40;
+
+my $SELFPATH    = abspath $0;
+my $SELFNAME    = basename $SELFPATH;
+my $SELFVERSION = $::VERSION;
+
+use constant
+  {
+    _FALSE => 0,
+    _TRUE => not 0,
+  };
+
+use constant
+  {
+    _PBXPROJ => 'project.pbxproj',
+  };
+
+use constant
+  {
+    _TAB => " " x 4,
+    _MIN_ROW_WIDTH => 60,
+    _COL_SEP => " | ",
+  };
+
+use constant
+  {
+    _OUTPUT_FORMAT => q|s/ /-/g,%p__%v__%o__%d__%t|,
+    _SOURCE_FORMAT => q|s/ /-/g,__%v__%o__%d__%t|,
+  };
+
+my %DEVICE_FAMILY =
+  (
+    q|iPod/iPhone|  => [ '1',   qr/^\s*1\s*$/i,         qr/^\s*(i)?(pod|phone)(os|simulator)?\s*$/i, ],
+    q|iPad|         => [ '2',   qr/^\s*2\s*$/i,         qr/^\s*(i)?(pad)(os|simulator)?\s*$/i, ],
+    q|Universal|    => [ '1,2', qr/^\s*1\s*,\s*2\s*$/i, qr/^\s*(universal)\s*$/i, ],
+    q|Apple TV|     => [ '3',   qr/^\s*3\s*$/i,         qr/^\s*(apple)?(tv)(os|simulator)?\s*$/i, ],
+    q|Apple Watch|  => [ '4',   qr/^\s*4\s*$/i,         qr/^\s*(apple)?(watch)(os|simulator)?\s*$/i, ],
+  );
+
+sub usage_short
+{
+  return << "USAGE"
+
+general usage:
+
+    $SELFNAME [-?hHlv]
+
+project/toolchain query:
+
+    $SELFNAME [-v] [-l] [-d device] [-t devtype] [-r runtime] [-k sdk]
+    $SELFNAME [-v] [-l] [-p project]
+
+compiler/package control:
+
+    $SELFNAME [-v] [-p project] [-k sdk] [-a family] [-e osversion] [-s scheme] [-c config] [-b bundle] [-m devteam] [-i profile] [-o output] [-O format] [-z compression] COMMAND
+    $SELFNAME [-v] [-p project] [-X xcodeconf] [-o output] [-O format] [-z compression] COMMAND
+USAGE
+}
+
+sub usage_long
+{
+  my ($usage_short) = usage_short;
+  return << "USAGE"
+================================================================================
+
+description:
+
+    $SELFNAME $::VERSION
+
+        command-line interface to create and configure iOS simulator instances;
+        and to build and export iOS executables from Xcode project source files
+
+synopsis:
+
+    the primary functions of this script are to (1) build a distributable
+    package containing project sources for SCM and an .ipa suitable for
+    installation on an iOS device, and (2) install and run an app in any
+    specified iOS device and iOS runtime/SDK combination available.
+
+    the simplest way to perform these tasks are as follows:
+
+      (1) first configure the project so that you can build and export an .ipa
+          directly from Xcode. next, identify the corresponding configuration
+          using:
+            $SELFNAME -l -p <path/to/project.xcodeproj>
+          then, taking note of the desired configuration index from the previous
+          command, simply run the following command to generate a zip-compressed
+          distribution package:
+            $SELFNAME -p <path/to/project.xcodeproj> -X <index> -z -- release
+
+      (2) TBD
+
+================================================================================
+$usage_short
+--------------------------------------------------------------------------------
+
+commands:
+
+    clean                     deletes all of the intermediate build files and
+                              exported archives and executable .ipa's; forces
+                              the compiler to rebuild everything
+
+    build                     compiles the project and codesigns the executable
+                              into an .app, then creates a distributable .ipa
+
+    release                   performs a clean+build of the project
+
+                                     ----
+
+general options:
+
+    -h, --help                display short usage info
+    -?, --????????
+
+    -H, --helpmore            display this super friendly usage info!
+
+    -v, --verbose             print detailed information of operations; add
+                              additional flags (e.g. -vv) to increase verbosity
+
+    -l, --list                list all available configuration options for the
+                              simulator, runtime, and SDK. combining this option
+                              with many of the configuration options [-dtrk]
+                              will display only the respective matching items,
+                              and each of those can be filtered by specifying
+                              an argument.
+                                EXAMPLE:
+                                  to list all available iPad device types:
+                                    $SELFNAME -l -y ipad
+                                  to list all available iOS 11 simulators:
+                                    $SELFNAME -l -d "ios 11"
+
+    -p, --project=PROJECT     path to the .xcodeproj directory. when combined
+                              with [-l], all available build configurations are
+                              listed (use this to identify settings that were
+                              configured in Xcode or to view available options
+                              for [-X] argument)
+                                EXAMPLE:
+                                  to list all available project options:
+                                    $SELFNAME -l -p MyProject.xcodeproj
+
+                                     ----
+
+options for controlling the simulator:
+
+    -d, --device[=DEVICE]     specify the simulator device to use
+
+    -t, --devtype[=DEVTYPE]   specify the simulator device type to use
+
+    -r, --runtime[=RUNTIME]   specify the iOS runtime to use
+
+                                     ----
+
+options for building an app:
+
+    -o, --output=OUTPUT       directory to output compiled executables and
+                              exported .ipa's
+
+    -O, --outputformat[=FMT]  specify the output file format with printf-style
+                              format-strings. most of the short options for
+                              building the app may also be used as specifiers
+                              with the following changes/additions:
+                                  \%p - project name (without ".xcodeproj")
+                                  \%d - current date
+                                  \%t - current time
+                                  \%v - detected app version
+                                  \%o - target device OS and version
+                              if the format string begins with a substitution
+                              expression followed by a comma (i.e. "s///,") then
+                              that substitution will be performed on the final
+                              resulting file name
+                                EXAMPLE:
+                                  to include project, configuration, and scheme:
+                                    -O "\%p \%c \%s"
+                                  to specify an exact file name:
+                                    -O "my archive 1"
+                                  project name, replacing all spaces with "-":
+                                    -O "s/ /-/,%p"
+                                NOTE:
+                                  if [-O] or its FMT argument is not provided,
+                                  the default format is used:
+                                    "s/ /-/g,\%p__\%v__\%o__\%d__\%t"
+
+    -S, --source=SOURCE       path to the project source directory to include in
+                              the output and optionally compress using the given
+                              [-z] compression argument. the destination name
+                              will be the the same as default [-O] but with the
+                              string "-Source" appended to the project name
+
+    -z, --compress[=XS]       compress the output directory using XS compression
+                              where XS is one of "zip", "gzip", or "bzip2". the
+                              file extension can be specified by appending it to
+                              XS. so [-z bzip2.tbz] will use bzip2 compression
+                              and append the file extension ".tbz" to the
+                              archive name. if extension is unspecified, the
+                              defaults ".zip", ".tar.gz", and ".tar.bz2" will be
+                              used, respectively. if XS is not specified, the
+                              default compression zip with extension ".zip" will
+                              be used
+
+    -X, --xcodeconf=CONF      specify a preconfigured set of build settings that
+                              were configured in Xcode. use arguments [-lp] to
+                              view available settings
+                                NOTE:
+                                  using this option is preferred as it will
+                                  automatically detect -all- required settings
+                                  for building and exporting the app. also, any
+                                  automatically detected settings may be
+                                  overridden by options specified here at the
+                                  command line
+
+    -V, --appversion=VERSION  set the app version number to use for software
+                              publishing. this corresponds to the project plist
+                              key CFBundleShortVersionString, or the project
+                              "Version" seen in Xcode
+                                NOTE:
+                                  this option actually modifies the project's
+                                  Info.plist file. use with caution!
+
+    -B, --appbuild=BUILD      set the app build identity to use for software
+                              publishing. this corresponds to the project plist
+                              key CFBundleVersion, or the project "Build" seen
+                              in Xcode
+                                NOTE:
+                                  this option actually modifies the project's
+                                  Info.plist file. use with caution!
+
+    -k, --sdk[=SDK]           specify the iOS SDK to use for compiling. valid
+                              values can be seen by combining this with [-l] to
+                              view available SDKs. if this option is not given
+                              when specifying [-X], a best effort is made to
+                              select the appropriate SDK. but when the project's
+                              target iOS version doesn't match the SDK version
+                              -verbatim-, an asterisk (*) is placed after the
+                              identified SDK in verbose (-v) messages to
+                              indicate a potential mismatch in SDK and target OS
+
+    -a, --family=FAMILY       specify the device family to use. valid values are
+                              "iphone", "ipod", "ipad", "universal", "watch",
+                              or "tv" (NOTE: "watch" and "tv" untested!). this
+                              option can be automatically set by specifying an
+                              SDK [-k]
+
+    -e, --osversion=VERSION   specify the OS version to use as deployment
+                              target. this option can be automatically set by
+                              specifying an SDK [-k]
+
+    -s, --scheme=SCHEME       specify the project's build/run scheme
+
+    -c, --config=CONFIG       specify the build configuration for the given
+                              build/run scheme
+
+    -b, --bundle=BUNDLE       specify the app bundle identifier to use
+
+    -m, --devteam=DEVTEAM     specify the build team identifier
+
+    -i, --profile=PROFILE     specify the provisioning profile to use for
+                              codesigning the app; this may be either the UUID
+                              or the descriptive name shown in Xcode
+
+================================================================================
+
+NOTE/BUGS
+
+    note that -if- the final option provided is one that optionally accepts an
+    argument (e.g. [-O], [-z]) and you do NOT provide an argument, then be sure
+    to indicate what follows is an argument to the script and not an argument to
+    the option. this is done using the traditional delimiter "--". meaning
+    everything that follows "--" will not be processed by the getopt parsing
+    library and will instead be left in ARGV. the synopsis above demonstrates an
+    instance where this is necessary, as we want "release" to be the script
+    command and not an argument to [-z] (we want [-z] to use its default implied
+    value of "zip").
+
+
+USAGE
+
+}
+
+sub usage
+{
+  my ($more) = @_;
+
+  return $more ? usage_long : usage_short . <<MORE;
+
+** NOTE **
+
+    see [-H|--helpmore] for extended usage information
+MORE
+}
+
+# ======================================================================================================================
+#  SUBROUTINES
+# ======================================================================================================================
+
+sub shell_cmd
+{
+  # see the perldoc on 'system' for more info
+
+  my ($cmd) = join " ", @_;
+  my ($ret);
+  my (@out);
+
+  # each element of @_ may contain spaces (i.e. multiple terms)
+  my ($program_name) = ($cmd =~ /\w+/g);
+
+  if ($VERBOSITY > 0)
+  {
+    my $subcmd = $cmd;
+    # remove all outermost surrounding parentheses
+    while ($subcmd =~ s/^\s*\(\s*(.*)\s*\)\s*$/$1/g) { ; }
+    sinfo "forking child process:";
+    sinfo _TAB . $subcmd;
+  }
+
+  open my $io, "-|", $cmd . " 2>&1"
+    or ohno clr([_ERROR_COLOR], "could not execute '$program_name': $!");
+
+  while (<$io>)
+  {
+    push @out, $_ if wantarray;
+
+    if ($VERBOSITY > 1)
+    {
+      chomp;
+      sinfo _TAB x 2 . $_;
+    }
+  }
+  close $io;
+
+  my ($ret_wait) = ($ret = $?);
+
+  if (-1 == $ret)
+  {
+    ohno clr([_ERROR_COLOR], "failed to fork or wait for child: $!");
+  }
+  elsif ($ret & 127)
+  {
+    my $sig = sprintf "%d", $ret & 127;
+    ohno clr([_ERROR_COLOR], "child died with signal $sig");
+  }
+  else
+  {
+    $ret >>= 8;
+
+    if ($VERBOSITY > 1)
+    {
+      sinfo "child terminated:";
+      sinfo _TAB . "returned $ret ($ret_wait)";
+    }
+  }
+
+  # scalar context just returns the exit value of the command; list context will
+  # return (in order): the cmd exit value, the wait(2) syscall return value, and
+  # a list containing each line output from the command (STDOUT -and- STDERR)
+  return
+    wantarray ? ($ret, $ret_wait, @out) : $ret;
+}
+
+sub subshell_cmd
+{
+  # same as sub shell_cmd{}, but encloses command in parens "(...)" so that you
+  # can safely navigate the fs, prepare env, etc. without affecting the current
+  # environment in which this script is executing. if you `cd` somewhere, the
+  # subshell will exit when finished -- leaving PWD unchanged
+
+  return 0 unless 0 < @_;
+
+  my ($cmd) = do { local $" = q| |; "( @_ )" };
+  my ($ret_s, @ret_l);
+
+  sinfo "spawning subshell ...(" if $VERBOSITY > 0;
+
+  {
+    if (wantarray) { @ret_l = shell_cmd $cmd }
+              else { $ret_s = shell_cmd $cmd }
+  }
+
+  sinfo ")... returned from subshell" if $VERBOSITY > 0;
+
+  return
+    wantarray ? @ret_l : $ret_s;
+}
+
+sub compress_archive
+{
+  my ($archive, $scheme, $extension, $prefix_name, $prefix_version) = @_;
+
+  my $file_path = "${archive}${extension}";
+
+  my $archive_prefix = $prefix_name;
+  $archive_prefix .= " $prefix_version"
+    if defined $prefix_version and length trim($prefix_version) > 0;
+
+  sinfo "compressing archive ($scheme):";
+  sinfo _TAB . "$file_path";
+
+  if ($scheme eq "zip")
+  {
+    ohno clr([_ERROR_COLOR], 'cannot create Zip archive: system utility "zip" not found')
+      unless 0 == system 'type -t tar 2>&1 > /dev/null';
+
+    my $archive_path = dirname $archive;
+    my $archive_name = basename $archive;
+
+    # bizarre bug: zip will not actually operate unless it can print messages to
+    # stdout (or if operating in --quiet|-q mode). and since we don't read from
+    # stdout outside of $VERBOSITY > 1, zip fails to commence...
+    my $qflag = $VERBOSITY > 1 ? '' : 'q';
+
+    subshell_cmd
+      "cd '$archive_path'; ".
+      "mv '$archive_name' '$archive_prefix'; ".
+      "zip -${qflag}r '$file_path' '$archive_prefix'; ".
+      "mv '$archive_prefix' '$archive_name'; ".
+      "";
+  }
+  elsif ($scheme eq "gzip" or $scheme eq "bzip2")
+  {
+    ohno clr([_ERROR_COLOR], 'cannot create tar archive: system utility "tar" not found')
+      unless 0 == system 'type -t tar 2>&1 > /dev/null';
+
+    my $zflag; # compression flag passed to tar
+    if ($scheme eq "gzip")
+    {
+      ohno clr([_ERROR_COLOR], 'cannot create GZip archive: system utility "gzip" not found')
+        unless 0 == system 'type -t gzip 2>&1 > /dev/null';
+      $zflag = 'z';
+    }
+    elsif ($scheme eq "bzip2")
+    {
+      ohno clr([_ERROR_COLOR], 'cannot create BZip2 archive: system utility "bzip2" not found')
+        unless 0 == system 'type -t bzip2 2>&1 > /dev/null';
+      $zflag = 'j';
+    }
+
+    my $archive_path = dirname $archive;
+    my $archive_name = basename $archive;
+
+    subshell_cmd
+      "cd '$archive_path'; ".
+      "mv '$archive_name' '$archive_prefix'; ".
+      "tar -c${zflag}vf '$file_path' '$archive_prefix'; ".
+      "mv '$archive_prefix' '$archive_name'; ".
+      "";
+  }
+
+  return $file_path;
+}
+
+sub header_line
+{
+  my ($width, $title, $text_color) = @_;
+
+  my $line = "=" x max _MIN_ROW_WIDTH, $width; $title = " $title ";
+  substr($line, 3, length $title) = $title;
+
+  $line =~
+    s/^\s*(=+ )(.+)( =+)\s*$/
+      clr([_HEADER_COLOR], $1) .
+      clr([$text_color], $2) .
+      clr([_HEADER_COLOR], $3)
+    /e;
+
+  return $line;
+}
+
+sub get_description_for_family
+{
+  my ($family) = @_;
+
+  for my $desc (keys %DEVICE_FAMILY)
+  {
+    my @f = @{$DEVICE_FAMILY{$desc}};
+    return $desc if $family =~ $f[1];
+  }
+}
+
+sub get_family_for_description
+{
+  my ($desc) = @_;
+
+  return ${$DEVICE_FAMILY{q|iPod/iPhone|}}[0]
+    if $desc =~ ${$DEVICE_FAMILY{q|iPod/iPhone|}}[2];
+
+  return ${$DEVICE_FAMILY{q|iPad|}}[0]
+    if $desc =~ ${$DEVICE_FAMILY{q|iPad|}}[2];
+
+  return ${$DEVICE_FAMILY{q|Universal|}}[0]
+    if $desc =~ ${$DEVICE_FAMILY{q|Universal|}}[2];
+
+  return ${$DEVICE_FAMILY{q|Apple TV|}}[0]
+    if $desc =~ ${$DEVICE_FAMILY{q|Apple TV|}}[2];
+
+  return ${$DEVICE_FAMILY{q|Apple Watch|}}[0]
+    if $desc =~ ${$DEVICE_FAMILY{q|Apple Watch|}}[2];
+}
+
+sub get_sdk_for_family_osversion
+{
+  my ($family, $osversion, @sdk) = @_;
+
+  if ($VERBOSITY > 0)
+  {
+    sinfo "identifying SDK for target family and OS";
+    {
+      local $/;
+      sinfo _TAB . "$family $osversion";
+    }
+  }
+
+  # do some sanitation on the family strings
+  $family =~ s/^.*(ip[ao]d|universal).*$/iphone/i; # iPod/iPad/iPhone all use the iPhone SDK
+  $family =~ s/^.*tv.*$/tv/i;
+  $family =~ s/^.*watch.*$/watch/i;
+
+  sub matched
+  {
+    my ($match, $exact) = @_;
+    my $sdkvalue = join "", @{$match};
+    pout " -> $sdkvalue" . ($exact ? "" : " (*)")
+      if $VERBOSITY > 0;
+    return $sdkvalue;
+  }
+
+  if (my ($match) = grep { join("", @{$_}) =~ /${family}.*${osversion}$/i } @sdk)
+  {
+    # found exact match
+    return matched($match, 1);
+  }
+  else
+  {
+    my ($match) = first { ${$_}[0] =~ /$family/i } @sdk;
+    return matched($match, 0) if defined $match;
+  }
+
+  return undef;
+}
+
+sub get_devices
+{
+  my ($device) = @_;
+
+  my ($io, $curr, %result);
+
+  sinfo "parsing devices from xcrun"
+    if $VERBOSITY > 0;
+
+  open $io, "-|", 'xcrun simctl list devices'
+    or ohno clr([_ERROR_COLOR], 'could not open pipe for "xcrun": ' . $!);
+
+  $curr = undef;
+  while (<$io>)
+  {
+    next if 1 == $.;
+    next if /^-- Unavailable:/;
+    ($result{($curr = $1)} = []), next if (/^-- (.+) --$/);
+
+    my ($name, $udid, $stat) =
+      /^\s+(.+)\s+\(([0-9A-F]+-[0-9A-F]+-[0-9A-F]+-[0-9A-F]+-[0-9A-F]+)\)\s+(\s*\(.+\))+$/g;
+
+    next if $stat =~ /unavailable/i;
+
+    if (defined $device)
+    {
+      next unless any { /$device/i } $curr, $name, $udid, $stat;
+    }
+
+    $stat = join "|", map { s/[()]//g; $_ } $stat =~ /\([^)]+\)/g;
+
+    push @{$result{$curr}}, [ $name, $udid, $stat ];
+  }
+  close $io;
+
+  # remove the device types that have no available devices
+  %result = map { $_ => $result{$_} } grep { 0 < @{$result{$_}} } keys %result;
+
+  return %result;
+}
+
+sub get_device_types
+{
+  my ($device_type) = @_;
+
+  my ($io, %result);
+
+  sinfo "parsing devicetypes from xcrun"
+    if $VERBOSITY > 0;
+
+  open $io, "-|", 'xcrun simctl list devicetypes'
+    or ohno clr([_ERROR_COLOR], 'could not open pipe for "xcrun": ' . $!);
+
+  while (<$io>)
+  {
+    next if 1 == $.;
+
+    my ($desc, $name) = /^\s*(.+)\s+\(([^)]+)\)\s*$/g;
+
+    if (defined $device_type)
+    {
+      next unless any { /$device_type/i } $desc, $name;
+    }
+
+    $result{$name} = $desc;
+  }
+  close $io;
+
+  return %result;
+}
+
+sub get_runtimes
+{
+  my ($runtime) = @_;
+
+  my ($io, %result);
+
+  sinfo "parsing runtimes from xcrun"
+    if $VERBOSITY > 0;
+
+  open $io, "-|", 'xcrun simctl list runtimes'
+    or ohno clr([_ERROR_COLOR], 'could not open pipe for "xcrun": ' . $!);
+
+  while (<$io>)
+  {
+    next if 1 == $.;
+
+    my ($desc, $version, $build, $name) =
+      /^\s*(.+)\s+\(([^)]+)\s+-\s+([^)]+)\)\s+-\s+(\S+)\s*$/;
+
+    if (defined $runtime)
+    {
+      next unless any { /$runtime/i } $desc, $version, $build, $name;
+    }
+
+    $result{$name} = [ $desc, $build ];
+  }
+  close $io;
+
+  return %result;
+}
+
+sub get_sdks
+{
+  my ($sdk) = @_;
+
+  my ($io, $curr, %result);
+
+  sinfo "parsing SDKs from xcodebuild"
+    if $VERBOSITY > 0;
+
+  open $io, "-|", 'xcodebuild -showsdks'
+    or ohno clr([_ERROR_COLOR], 'could not open pipe for "xcodebuild": ' . $!);
+
+  $curr = undef;
+  while (<$io>)
+  {
+    if (/^(.+) SDKs:/)
+    {
+      $curr = $1;
+      $result{$curr} = [];
+    }
+    elsif (defined $curr)
+    {
+      if (my ($version, $ident) = /^\s+.+?([\d\.]+)\s+-sdk\s+(\S+)\1\s*$/)
+      {
+        if (defined $sdk)
+        {
+          next unless any { /$sdk/i } $curr, $version, $ident;
+        }
+        push @{$result{$curr}}, [ $ident, $version ];
+      }
+    }
+  }
+  close $io;
+
+  return %result;
+}
+
+sub get_project_settings
+{
+  my ($pbxproj_path) = @_;
+
+  ohno clr([_ERROR_COLOR], 'cannot parse project file: system utility "plutil" not found')
+    unless 0 == system 'type -t plutil 2>&1 > /dev/null';
+
+  sinfo "converting project file to XML"
+    if $VERBOSITY > 0;
+  my $project_xml = `plutil -convert xml1 -o - '$pbxproj_path'`;
+  sinfo "parsing project data"
+    if $VERBOSITY > 0;
+  my $project_data = parse_plist($project_xml);
+
+  my %project_key = %{${$project_data->as_perl}{objects}};
+  my %project_key_type;
+
+  for my $key (keys %project_key)
+  {
+    $project_key_type{$project_key{$key}{isa}} = []
+      unless exists $project_key_type{$project_key{$key}{isa}};
+
+    push @{$project_key_type{$project_key{$key}{isa}}}, $key;
+  }
+
+  my @build_config;
+
+  for my $scheme (@{$project_key_type{PBXNativeTarget}})
+  {
+    my $scheme_name = ${$project_key{$scheme}}{name};
+    my $config_list = ${$project_key{$scheme}}{buildConfigurationList};
+
+    for my $build_config (@{${$project_key{$config_list}}{buildConfigurations}})
+    {
+      my $config_name = ${$project_key{$build_config}}{name};
+      my %config_settings = %{${$project_key{$build_config}}{buildSettings}};
+
+      my $desc_name = sprintf '%s, %s', $scheme_name, $config_name;
+      my $desc_prop = sprintf 'osversion="%s";family="%s";codesign="%s";ident="%s";bundle="%s";profile="%s";profilespec="%s";team="%s"',
+          $config_settings{IPHONEOS_DEPLOYMENT_TARGET},
+          sprintf("%s (%s)",
+            get_description_for_family($config_settings{TARGETED_DEVICE_FAMILY}),
+            $config_settings{TARGETED_DEVICE_FAMILY}),
+          $config_settings{CODE_SIGN_STYLE},
+          $config_settings{CODE_SIGN_IDENTITY},
+          $config_settings{PRODUCT_BUNDLE_IDENTIFIER},
+          $config_settings{PROVISIONING_PROFILE},
+          $config_settings{PROVISIONING_PROFILE_SPECIFIER},
+          $config_settings{DEVELOPMENT_TEAM};
+
+      push @build_config,
+        {
+          _DESC_NAME    => $desc_name,
+          _DESC_PROP    => $desc_prop,
+          _SCHEME       => $scheme_name,
+          _CONFIG       => $config_name,
+          os_version    => $config_settings{IPHONEOS_DEPLOYMENT_TARGET},
+          family        => $config_settings{TARGETED_DEVICE_FAMILY},
+          codesign_type => $config_settings{CODE_SIGN_STYLE},
+          codesign_id   => $config_settings{CODE_SIGN_IDENTITY},
+          bundle_id     => $config_settings{PRODUCT_BUNDLE_IDENTIFIER},
+          prov_profile  => $config_settings{PROVISIONING_PROFILE},
+          prov_spec     => $config_settings{PROVISIONING_PROFILE_SPECIFIER},
+          dev_team      => $config_settings{DEVELOPMENT_TEAM},
+        };
+    }
+  }
+
+  @build_config = sort { ${$a}{_DESC_NAME} cmp ${$b}{_DESC_NAME} } @build_config;
+}
+
+sub set_app_version
+{
+  my ($proj_path, $version, $build) = @_;
+
+  my $proj_plist =
+    catpath
+      dirname($proj_path),
+      rmfileext(basename($proj_path)),
+      "Info.plist";
+
+  ohno clr([_ERROR_COLOR], 'cannot parse project file: system utility "plutil" not found')
+    unless 0 == system 'type -t plutil 2>&1 > /dev/null';
+
+  if (defined $version and length trim($version) > 0)
+  {
+    if ($VERBOSITY > 0)
+    {
+      sinfo "setting Info.plist key:";
+      sinfo _TAB . "CFBundleShortVersionString = $version";
+    }
+
+    my $exec_retcode =
+      shell_cmd
+        "plutil ".
+        "-replace CFBundleShortVersionString ".
+        "-string '$version' ".
+        "'$proj_plist' ".
+        "";
+
+    if (0 != $exec_retcode)
+    {
+      ohno clr([_ERROR_COLOR], "failed to change project version string, re-run with verbose>=2 (-vv) to view plutil log");
+    }
+  }
+
+  if (defined $build and length trim($build) > 0)
+  {
+    if ($VERBOSITY > 0)
+    {
+      sinfo "setting Info.plist key:";
+      sinfo _TAB . "CFBundleVersion = $build";
+    }
+
+    my $exec_retcode =
+      shell_cmd
+        "plutil ".
+        "-replace CFBundleVersion ".
+        "-string '$build' ".
+        "'$proj_plist' ".
+        "";
+
+    if (0 != $exec_retcode)
+    {
+      ohno clr([_ERROR_COLOR], "failed to change project build string, re-run with verbose>=2 (-vv) to view plutil log");
+    }
+  }
+}
+
+sub get_app_version
+{
+  my ($proj_path) = @_;
+
+  my $proj_plist =
+    catpath
+      dirname($proj_path),
+      rmfileext(basename($proj_path)),
+      "Info.plist";
+
+  my $app_data = parse_plist_file($proj_plist)->as_perl;
+  my $app_version = "";
+
+  $app_version .= "${$app_data}{CFBundleShortVersionString}"
+    if exists ${$app_data}{CFBundleShortVersionString};
+  $app_version .= " ${$app_data}{CFBundleVersion}"
+    if exists ${$app_data}{CFBundleVersion};
+
+  return $app_version;
+}
+
+# ======================================================================================================================
+#  PARSE COMMAND LINE ARGUMENTS
+# ======================================================================================================================
+
+my ( $cloHelp, $cloHelpMore, $cloVerbose, $cloList, $cloProject,
+     $cloDevice, $cloDevType, $cloRuntime,
+     $cloOutput, $cloOutputFormat, $cloSource, $cloCompress, $cloXcodeConf, $cloAppVersion, $cloAppBuild, $cloSDK, $cloFamily, $cloOSVersion, $cloScheme, $cloConfig, $cloBundle, $cloDevTeam, $cloProfile );
+
+final usage unless @ARGV > 0;
+
+GetOptions(
+             "help|h|?!" => \$cloHelp,
+         "helpmore|H!"   => \$cloHelpMore,
+          "verbose|v+"   => \$cloVerbose,
+             "list|l!"   => \$cloList,
+          "project|p=s"  => \$cloProject,
+           "device|d:s"  => \$cloDevice,
+          "devtype|t:s"  => \$cloDevType,
+          "runtime|r:s"  => \$cloRuntime,
+           "output|o=s"  => \$cloOutput,
+     "outputformat|O:s"  => \$cloOutputFormat,
+           "source|S=s"  => \$cloSource,
+         "compress|z:s"  => \$cloCompress,
+        "xcodeconf|X=s"  => \$cloXcodeConf,
+       "appversion|V=s"  => \$cloAppVersion,
+         "appbuild|B=s"  => \$cloAppBuild,
+              "sdk|k:s"  => \$cloSDK,
+           "family|a=s"  => \$cloFamily,
+        "osversion|e=s"  => \$cloOSVersion,
+           "scheme|s=s"  => \$cloScheme,
+           "config|c=s"  => \$cloConfig,
+           "bundle|b=s"  => \$cloBundle,
+          "devteam|m=s"  => \$cloDevTeam,
+          "profile|i=s"  => \$cloProfile,
+) or quit;
+
+final usage(defined $cloHelpMore)
+  if defined $cloHelp or defined $cloHelpMore;
+
+$VERBOSITY = $cloVerbose if defined $cloVerbose;
+
+ohno clr([_ERROR_COLOR], 'cannot control simulator tools: system utility "xcrun" not found')
+  unless 0 == system 'type -t xcrun 2>&1 > /dev/null';
+
+ohno clr([_ERROR_COLOR], 'cannot control build tools: system utility "xcodebuild" not found')
+  unless 0 == system 'type -t xcodebuild 2>&1 > /dev/null';
+
+my $row_width = $ROW_WIDTH_MIN;
+
+if (defined $cloList)
+{
+
+# ======================================================================================================================
+#  CONFIGURATION LISTINGS
+# ======================================================================================================================
+
+# ------------------------------------------------------------------------------
+#  PARSE SDK/RUNTIME SETTINGS
+# ------------------------------------------------------------------------------
+
+  my %device = get_devices($cloDevice || ".");
+  my %devtype = get_device_types($cloDevType || ".");
+  my %runtime = get_runtimes($cloRuntime || ".");
+  my %sdk = get_sdks($cloSDK || ".");
+
+  my $reduced_listing = any { defined } $cloDevice, $cloDevType, $cloRuntime, $cloSDK
+  , $cloProject
+  ;
+
+  my $have_devices = keys %device > 0;
+  my $list_devices = (not $reduced_listing or defined $cloDevice);
+  my $have_devtypes = keys %devtype > 0;
+  my $list_devtypes = (not $reduced_listing or defined $cloDevType);
+  my $have_runtimes = keys %runtime > 0;
+  my $list_runtimes = (not $reduced_listing or defined $cloRuntime);
+  my $have_sdks = keys %sdk > 0;
+  my $list_sdks = (not $reduced_listing or defined $cloSDK);
+
+# ------------------------------------------------------------------------------
+#  CALCULATE COLUMN WIDTHS
+# ------------------------------------------------------------------------------
+
+  my $device_os_width = ($have_devices and $list_devices)
+    ? max map { length } keys %device : 0;
+
+  my $device_name_width = ($have_devices and $list_devices)
+    ? max map { map { length ${$_}[0] || 0 } @{$_} } values %device : 0;
+
+  my $device_udid_width = ($have_devices and $list_devices)
+    ? max map { map { length ${$_}[1] || 0 } @{$_} } values %device : 0;
+
+  my $device_stat_width = ($have_devices and $list_devices)
+    ? max map { map { length ${$_}[2] || 0 } @{$_} } values %device : 0;
+
+  my $devtype_name_width = ($have_devtypes and $list_devtypes)
+    ? max map { length } values %devtype : 0;
+
+  my $devtype_spec_width = ($have_devtypes and $list_devtypes)
+    ? max map { length } keys %devtype : 0;
+
+  my $runtime_os_width = ($have_runtimes and $list_runtimes)
+    ? max map { length ${$_}[0] || 0 } values %runtime : 0;
+
+  my $runtime_build_width = ($have_runtimes and $list_runtimes)
+    ? max map { length ${$_}[1] || 0 } values %runtime : 0;
+
+  my $runtime_spec_width = ($have_runtimes and $list_runtimes)
+    ? max map { length } keys %runtime : 0;
+
+  my $sdk_name_width = ($have_sdks and $list_sdks)
+    ? max map { length } keys %sdk : 0;
+
+  my $sdk_ident_width = ($have_sdks and $list_sdks)
+    ? max map { map { length ${$_}[0] || 0 } @{$_} } values %sdk : 0;
+
+  my $sdk_version_width = ($have_sdks and $list_sdks)
+    ? max map { map { length ${$_}[1] || 0 } @{$_} } values %sdk : 0;
+
+  my @col_width =
+    (
+      max($device_os_width, $runtime_os_width, $sdk_name_width),
+      max($device_name_width, $devtype_name_width, $runtime_build_width, $sdk_ident_width + $sdk_version_width),
+      max($device_udid_width, $devtype_spec_width, $runtime_spec_width),
+      max($device_stat_width),
+    );
+
+  $row_width = max($ROW_WIDTH_MIN,
+    (length _TAB) +
+    (@col_width * length _COL_SEP) +
+    (sum @col_width));
+
+# ------------------------------------------------------------------------------
+#  LIST AVAILABLE SIMULATOR DEVICES
+# ------------------------------------------------------------------------------
+
+  if ($list_devices)
+  {
+    sinfo header_line $row_width, "DEVICES", "icyan";
+
+    if ($have_devices)
+    {
+      for my $key (sort keys %device)
+      {
+        sinfof _TAB . "%${col_width[0]}s". _COL_SEP . "%-${col_width[1]}s". _COL_SEP . "%-${col_width[2]}s". _COL_SEP . "%-${col_width[3]}s", [ $key, @$_ ]
+          for @{$device{$key}};
+      }
+    }
+    else
+    {
+      my $condition = ($reduced_listing and length $cloDevice)
+        ? " for /$cloDevice/" : "";
+
+      swarn _TAB . "(no devices found${condition})";
+    }
+  }
+
+# ------------------------------------------------------------------------------
+#  LIST AVAILABLE SIMULATOR DEVICE TYPES
+# ------------------------------------------------------------------------------
+
+  if ($list_devtypes)
+  {
+    sinfo header_line $row_width, "DEVICE TYPES", "icyan";
+
+    if ($have_devtypes)
+    {
+      sinfof _TAB . "%${col_width[0]}s". _COL_SEP . "%-${col_width[1]}s". _COL_SEP . "%-${col_width[2]}s", [ "", $devtype{$_}, $_ ]
+        for sort { $devtype{$a} cmp $devtype{$b} } keys %devtype;
+    }
+    else
+    {
+      my $condition = ($reduced_listing and length $cloDevType)
+        ? " for /$cloDevType/" : "";
+
+      swarn _TAB . "(no device types found${condition})";
+    }
+  }
+
+# ------------------------------------------------------------------------------
+#  LIST AVAILABLE SIMULATOR RUNTIMES
+# ------------------------------------------------------------------------------
+
+  if ($list_runtimes)
+  {
+    sinfo header_line $row_width, "RUNTIMES", "icyan";
+
+    if ($have_runtimes)
+    {
+      sinfof _TAB . "%${col_width[0]}s". _COL_SEP . "%-${col_width[1]}s". _COL_SEP . "%-${col_width[2]}s", [ @{$runtime{$_}}, $_ ]
+        for sort { ${$runtime{$a}}[0] cmp ${$runtime{$b}}[0] } keys %runtime;
+    }
+    else
+    {
+      my $condition = ($reduced_listing and length $cloRuntime)
+        ? " for /$cloRuntime/" : "";
+
+      swarn _TAB . "(no runtimes found${condition})";
+    }
+  }
+
+# ------------------------------------------------------------------------------
+#  LIST AVAILABLE SDKS
+# ------------------------------------------------------------------------------
+
+  if ($list_sdks)
+  {
+    sinfo header_line $row_width, "SDKS", "icyan";
+
+    if ($have_sdks)
+    {
+      for my $key (sort keys %sdk)
+      {
+        my $name = $key;
+        for (@{$sdk{$key}})
+        {
+          sinfof _TAB . "%${col_width[0]}s". _COL_SEP . "%-${col_width[1]}s", [ $name, join '', @$_ ];
+          $name = "";
+        }
+      }
+
+    }
+    else
+    {
+      my $condition = ($reduced_listing and length $cloSDK)
+        ? " for /$cloSDK/" : "";
+
+      swarn _TAB . "(no SDKs found${condition})";
+    }
+  }
+
+# ------------------------------------------------------------------------------
+#  PARSE PROJECT SETTINGS
+# ------------------------------------------------------------------------------
+
+  if (defined $cloProject)
+  {
+    my $pbxproj_path =
+      _PBXPROJ eq basename($cloProject)
+        ? $cloProject
+        : catpath $cloProject, _PBXPROJ;
+
+    if (-f $pbxproj_path)
+    {
+      my $proj_path = abspath(
+        _PBXPROJ eq basename($cloProject)
+          ? dirname($cloProject)
+          : $cloProject);
+
+      sinfo header_line $row_width, "PROJECT", "icyan";
+
+      sinfo "project file:";
+      sinfo _TAB . $pbxproj_path;
+
+      my $app_version = get_app_version($proj_path);
+
+      sinfo "detected .app version:";
+      sinfo _TAB . $app_version;
+
+      my @build_config = get_project_settings($pbxproj_path);
+
+# ------------------------------------------------------------------------------
+#  LIST AVAILABLE PROJECT SETTINGS
+# ------------------------------------------------------------------------------
+
+      sinfo "build configurations:";
+      my $config_id = 0;
+      for (@build_config)
+      {
+        $config_id++;
+        sinfo _TAB . "[$config_id] ${$_}{_DESC_NAME} = {";
+        sinfo _TAB x 2 . $_ for split /\s*;\s*/, ${$_}{_DESC_PROP};
+        sinfo _TAB . "}";
+      }
+    }
+    else
+    {
+      ohno clr([_ERROR_COLOR], "invalid project: file not found: $pbxproj_path");
+    }
+  }
+  elsif (not $reduced_listing)
+  {
+    #swarn "NOTE: combine option [-l] with [-p PROJECT] to list project configuration options";
+  }
+}
+else
+{
+
+# ======================================================================================================================
+#  BUILD / RUN MAIN LINE
+# ======================================================================================================================
+
+  my ($exec_retcode);
+
+  my $num_ops = 0;
+  for my $cmd (@ARGV)
+  {
+    if (grep { $cmd =~ $_ } values %OPCMD)
+    {
+      ++$num_ops;
+    }
+    else
+    {
+      swarn "unrecognized command: $cmd";
+    }
+  }
+  ohno clr([_ERROR_COLOR], "no commands given, see -h for usage")
+    unless $num_ops > 0;
+
+  ohno clr([_ERROR_COLOR], "no SDK (-k) specified, see -h for usage")
+    unless not defined $cloSDK or length $cloSDK;
+
+# ------------------------------------------------------------------------------
+#  GATHER COMMAND LINE OPTIONS
+# ------------------------------------------------------------------------------
+
+  if (defined $cloProject)
+  {
+    my $pbxproj_path =
+      _PBXPROJ eq basename($cloProject)
+        ? $cloProject
+        : catpath $cloProject, _PBXPROJ;
+
+    if (-f $pbxproj_path)
+    {
+      my $proj_path = abspath(
+        _PBXPROJ eq basename($cloProject)
+          ? dirname($cloProject)
+          : $cloProject);
+
+      sinfo header_line $row_width, "PROJECT", "icyan";
+
+      sinfo "project file:";
+      sinfo _TAB . $pbxproj_path;
+
+      my ($sel_output, $sel_sdk, $sel_family, $sel_osversion, $sel_scheme, $sel_config, $sel_bundle, $sel_devteam, $sel_profile, $sel_profid) =
+        (undef, undef, undef, undef, undef, undef, undef, undef, undef, undef);
+
+      my ($cmd_clean, $cmd_build) =
+        (
+          scalar ( grep { $_ =~  $OPCMD{clean} } @ARGV ),
+          scalar ( grep { $_ =~  $OPCMD{build} } @ARGV ),
+        );
+
+      my ($compression_scheme, $compression_extension);
+
+      my $opt_app_version = $cloAppVersion || undef;
+      my $opt_app_build   = $cloAppBuild || undef;
+
+      set_app_version($proj_path, $opt_app_version, $opt_app_build);
+
+      my $app_version = get_app_version($proj_path);
+
+      sinfo "detected .app version:";
+      sinfo _TAB . $app_version;
+
+      my %available_sdk = get_sdks(".");
+      my @option_sdk =
+        # reverse so that newer versions occur prior older versions
+        reverse sort { join("", @{$a}) cmp join("", @{$b}) }
+          grep { join("", @{$_}) !~ /simulator/i } map { @{$_} } values %available_sdk;
+
+      if (defined $cloXcodeConf)
+      {
+        my @build_config = get_project_settings($pbxproj_path);
+
+        ohno clr([_ERROR_COLOR], "invalid Xcode configuration: $cloXcodeConf")
+          unless $cloXcodeConf > 0 and $cloXcodeConf <= @build_config
+            and isint($cloXcodeConf);
+
+        $sel_scheme     = ${$build_config[$cloXcodeConf - 1]}{_SCHEME};
+        $sel_config     = ${$build_config[$cloXcodeConf - 1]}{_CONFIG};
+        $sel_family     = ${$build_config[$cloXcodeConf - 1]}{family};
+        $sel_osversion  = ${$build_config[$cloXcodeConf - 1]}{os_version};
+        $sel_bundle     = ${$build_config[$cloXcodeConf - 1]}{bundle_id};
+        $sel_devteam    = ${$build_config[$cloXcodeConf - 1]}{dev_team};
+        $sel_profile    = ${$build_config[$cloXcodeConf - 1]}{prov_profile};
+        $sel_profid     = ${$build_config[$cloXcodeConf - 1]}{prov_spec};
+
+        # translate the Info.plist values to their corresponding argument values
+        # that are valid for this script
+        $sel_family = get_description_for_family($sel_family);
+      }
+
+      # overwrite the selected Xcode config if any options were provided
+      $sel_output     = $cloOutput if defined $cloOutput;
+      $sel_scheme     = $cloScheme if defined $cloScheme;
+      $sel_config     = $cloConfig if defined $cloConfig;
+      $sel_sdk        = $cloSDK if defined $cloSDK;
+      $sel_family     = $cloFamily if defined $cloFamily;
+      $sel_osversion  = $cloOSVersion if defined $cloOSVersion;
+      $sel_bundle     = $cloBundle if defined $cloBundle;
+      $sel_devteam    = $cloDevTeam if defined $cloDevTeam;
+      $sel_profile    = $cloProfile if defined $cloProfile;
+
+      if (defined $sel_sdk)
+      {
+        if (my ($family, $osversion) = ($sel_sdk =~ /^\s*(\S+?)([\d\.]+)/))
+        {
+          $sel_family = $family unless defined $sel_family;
+          $sel_osversion = $osversion unless defined $sel_osversion;
+        }
+      }
+      else
+      {
+        if (defined $sel_family and defined $sel_osversion)
+        {
+          $sel_sdk =
+            get_sdk_for_family_osversion($sel_family, $sel_osversion, @option_sdk);
+        }
+      }
+
+# ------------------------------------------------------------------------------
+#  CLEAN
+# ------------------------------------------------------------------------------
+
+      if ($cmd_clean)
+      {
+        sinfo header_line $row_width, "CLEAN", "icyan";
+
+        my $config_option = "";
+
+        if (defined $sel_config)
+        {
+          if ($VERBOSITY > 0)
+          {
+            sinfo "build configuration:";
+            sinfo _TAB . $sel_config;
+          }
+          $config_option = "-configuration '$sel_config'";
+        }
+        else
+        {
+          swarn 'no build configuration (-c) specified, using default';
+        }
+
+        sinfo "cleaning compiled project files";
+
+        $exec_retcode =
+          shell_cmd "xcodebuild clean ".
+            "-project '$proj_path' ".
+            "$config_option ".
+            "-alltargets ".
+            "";
+
+        if (0 != $exec_retcode)
+        {
+          ohno clr([_ERROR_COLOR], "failed to clean project, re-run with verbose>=2 (-vv) to view compiler log");
+        }
+
+        my $clean_dir = catpath dirname($proj_path), "build";
+        if ($VERBOSITY > 0)
+        {
+          sinfo "deleting clean directory:";
+          sinfo _TAB . $clean_dir;
+        }
+        rmr $clean_dir;
+
+        sinfo header_line $row_width, "SUCCESS", "bigreen";
+      }
+
+# ------------------------------------------------------------------------------
+#  VALIDATE INPUT
+# ------------------------------------------------------------------------------
+
+      if ($cmd_build)
+      {
+        sinfo header_line $row_width, "BUILD", "icyan";
+
+        ohno clr([_ERROR_COLOR], 'no scheme (-s) specified, see -h for usage')
+          unless defined $sel_scheme;
+
+        if ($VERBOSITY > 0)
+        {
+          sinfo "scheme:";
+          sinfo _TAB . $sel_scheme;
+        }
+
+        ohno clr([_ERROR_COLOR], 'no build configuration (-c) specified, see -h for usage')
+          unless defined $sel_config;
+
+        if ($VERBOSITY > 0)
+        {
+          sinfo "build configuration:";
+          sinfo _TAB . $sel_config;
+        }
+
+        ohno clr([_ERROR_COLOR], 'no application bundle identifier (-b) specified, see -h for usage')
+          unless defined $sel_bundle;
+
+        if ($VERBOSITY > 0)
+        {
+          sinfo "application bundle identifier:";
+          sinfo _TAB . $sel_bundle;
+        }
+
+        ohno clr([_ERROR_COLOR], 'no development team (-m) specified, see -h for usage')
+          unless defined $sel_devteam;
+
+        if ($VERBOSITY > 0)
+        {
+          sinfo "development team:";
+          sinfo _TAB . $sel_devteam;
+        }
+
+        ohno clr([_ERROR_COLOR], 'no provisioning profile (-i) specified, see -h for usage')
+          unless defined $sel_profile;
+
+        if ($VERBOSITY > 0)
+        {
+          sinfo "provisioning profile:";
+          sinfo _TAB .
+            (
+              defined $sel_profid
+                ? "$sel_profid ($sel_profile)"
+                : "$sel_profile"
+            );
+        }
+
+        ohno clr([_ERROR_COLOR], 'no SDK (-k) specified, see -h for usage')
+          unless defined $sel_sdk;
+
+        if ($VERBOSITY > 0)
+        {
+          sinfo "software development kit:";
+          sinfo _TAB . $sel_sdk;
+        }
+
+        ohno clr([_ERROR_COLOR], 'no device family (-a) specified, see -h for usage')
+          unless defined $sel_family;
+
+        my $sel_family_desc = $sel_family;
+        my $sel_family_id = get_family_for_description($sel_family);
+        if ($VERBOSITY > 0)
+        {
+          sinfo "device family:";
+          sinfo _TAB . "$sel_family ($sel_family_id)";
+        }
+        $sel_family = $sel_family_id;
+
+        ohno clr([_ERROR_COLOR], 'no deployment OS version (-e) specified, see -h for usage')
+          unless defined $sel_osversion;
+
+        if ($VERBOSITY > 0)
+        {
+          sinfo "deployment OS version:";
+          sinfo _TAB . $sel_osversion;
+        }
+
+# ------------------------------------------------------------------------------
+#  CONSTRUCT OUTPUT FILENAME
+# ------------------------------------------------------------------------------
+
+        # keep this external to the function so that all callers use the same
+        # date and time for the duration of this script
+        my ($cdate, $ctime) = split /__/, nowfs;
+
+        sub format_name
+        {
+          my ($opt_format, $opt_prefix) = @_;
+
+          $opt_format = _OUTPUT_FORMAT
+            unless length $opt_format;
+
+          my $format = $opt_format;
+          my $subexpr = undef;
+
+          if ($format =~ m|^\s*(s/.+?/.*?/[a-z]*),|)
+          {
+            $subexpr = $1;
+            my $subexpr_p = quotemeta $subexpr;
+            $format =~ s/^\s*${subexpr_p},//;
+          }
+
+          my $replacement = "";
+          while ($format =~ /(%).|./g)
+          {
+            my $spec = $&;
+            if (defined $1)
+            {
+              if ($spec eq '%p') # project name
+              {
+                $replacement .= rmfileext(basename($proj_path));
+              }
+              elsif ($spec eq '%d') # current date
+              {
+                $replacement .= $cdate;
+              }
+              elsif ($spec eq '%t') # current time
+              {
+                $replacement .= $ctime;
+              }
+              elsif ($spec eq '%v') # app version
+              {
+                $replacement .= $app_version;
+              }
+              elsif ($spec eq '%o') # target device OS and version
+              {
+                if ($sel_family_desc =~ /ip[oa]d|iphone|universal/i)
+                {
+                  $replacement .= "iOS-" . $sel_osversion;
+                }
+                elsif ($sel_family_desc =~ /watch/i)
+                {
+                  $replacement .= "watchOS-" . $sel_osversion;
+                }
+                elsif ($sel_family_desc =~ /tv/i)
+                {
+                  $replacement .= "tvOS-" . $sel_osversion;
+                }
+                else
+                {
+                  $replacement .= "$sel_family_desc-$sel_osversion";
+                }
+              }
+              elsif ($spec eq '%k') # SDK
+              {
+                $replacement .= $sel_sdk;
+              }
+              elsif ($spec eq '%a') # family
+              {
+                $sel_family_desc =~ s|iPod/||i;
+                $replacement .= $sel_family_desc;
+              }
+              elsif ($spec eq '%e') # osversion
+              {
+                $replacement .= $sel_osversion;
+              }
+              elsif ($spec eq '%s') # scheme
+              {
+                $replacement .= $sel_scheme;
+              }
+              elsif ($spec eq '%c') # config
+              {
+                $replacement .= $sel_config;
+              }
+              elsif ($spec eq '%b') # bundle
+              {
+                $replacement .= $sel_bundle;
+              }
+              elsif ($spec eq '%m') # devteam
+              {
+                $replacement .= $sel_devteam;
+              }
+              elsif ($spec eq '%i') # profile
+              {
+                $replacement .=
+                  defined $sel_profid
+                    ? "$sel_profid ($sel_profile)"
+                    : "$sel_profile"
+              }
+            }
+            else
+            {
+              $replacement .= $spec;
+            }
+          }
+
+          $replacement = "${opt_prefix}${replacement}"
+            if defined $opt_prefix and length trim($opt_prefix) > 0;
+
+          if (defined $subexpr)
+          {
+            $replacement = eval "\$replacement =~ $subexpr; \$replacement";
+          }
+          return $replacement;
+        }
+
+        my $archive_name = format_name($cloOutputFormat);
+
+        my %source_name = ();
+        if (defined $cloSource and length trim($cloSource) > 0)
+        {
+          my $source_path = abspath $cloSource;
+
+          if (-d $source_path)
+          {
+            my $name = basename $source_path;
+            $name .= " Source";
+            $source_name{$source_path} = format_name(_SOURCE_FORMAT, $name);
+          }
+          else
+          {
+            swarn "source path (-S) does not exist, skipping:";
+            swarn _TAB . $source_path;
+          }
+        }
+
+        my $output_root = abspath $sel_output;
+        unless (defined $output_root)
+        {
+          if ($VERBOSITY > 0)
+          {
+            swarn "no output directory (-o) specified, using \$PWD";
+          }
+          $output_root = $ENV{PWD};
+        }
+
+        for my $dir (keys %source_name)
+        {
+          ohno clr([_ERROR_COLOR], "output directory (-o) cannot be a subdirectory of source path (-S)")
+            if $output_root =~ m|^${dir}/| or $output_root eq $dir;
+        }
+
+        $sel_output = catpath $output_root, $archive_name;
+
+        my $output_root_created = 0;
+        unless (-d $output_root)
+        {
+          forcedir $output_root;
+          ohno clr([_ERROR_COLOR], "could not create output directory: $output_root")
+            unless -d $output_root;
+          $output_root_created = 1;
+        }
+
+        sinfo "output directory".($output_root_created ? " (new)" : "").":";
+        sinfo _TAB . $output_root;
+
+        if (defined $cloCompress)
+        {
+          if (length $cloCompress)
+          {
+            my ($scheme, $extension) = ($cloCompress =~ /^\s*(zip|gzip|bzip2)(.+)?/);
+
+            ohno clr([_ERROR_COLOR], "compression scheme (-z) not recognized, see -h for usage")
+              unless defined $scheme;
+
+            $compression_scheme = $scheme if defined $scheme;
+
+            if (defined $extension)
+            {
+              $compression_extension = $extension;
+            }
+            else
+            {
+              if    ($scheme eq "zip")   { $compression_extension = ".zip";     }
+              elsif ($scheme eq "gzip")  { $compression_extension = ".tar.gz";  }
+              elsif ($scheme eq "bzip2") { $compression_extension = ".tar.bz2"; }
+            }
+          }
+          else
+          {
+            ($compression_scheme, $compression_extension) = ("zip", ".zip");
+          }
+        }
+
+# ------------------------------------------------------------------------------
+#  BUILD
+# ------------------------------------------------------------------------------
+
+        my ($dir_archive) = tmpdir;
+
+        sinfo "creating codesigned executable .app archive:";
+        sinfo _TAB . $dir_archive;
+
+        $exec_retcode =
+          shell_cmd "xcodebuild archive ".
+            "-project '$proj_path' ".
+            "-sdk '$sel_sdk' ".
+            "-scheme '$sel_scheme' ".
+            "-configuration '$sel_config' ".
+            "-archivePath '$dir_archive' ".
+            "DEVELOPMENT_TEAM='$sel_devteam' ".
+            "TARGETED_DEVICE_FAMILY='$sel_family' ".
+            "IPHONEOS_DEPLOYMENT_TARGET='$sel_osversion' ".
+            "";
+
+        if (0 != $exec_retcode)
+        {
+          ohno clr([_ERROR_COLOR], "failed to build project, re-run with verbose>=2 (-vv) to view compiler log");
+        }
+
+# ------------------------------------------------------------------------------
+#  ARCHIVE
+# ------------------------------------------------------------------------------
+
+        if ($VERBOSITY > 1)
+        {
+          sinfo "creating build plist";
+        }
+
+        my ($fh_plist) = tmpfh;
+
+        print $fh_plist <<"PLIST";
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>enterprise</string>
+
+    <key>provisioningProfiles</key>
+    <dict>
+      <key>${sel_bundle}</key>
+      <string>${sel_profile}</string>
+    </dict>
+
+    <key>signingCertificate</key>
+    <string>iOS Distribution</string>
+
+    <key>signingStyle</key>
+    <string>manual</string>
+
+    <key>teamID</key>
+    <string>${sel_devteam}</string>
+</dict>
+</plist>
+PLIST
+
+        sinfo "exporting .ipa from codesigned executable .app archive:";
+        sinfo _TAB . "$dir_archive.xcarchive";
+
+        $exec_retcode =
+          shell_cmd "xcodebuild -exportArchive ".
+            "-archivePath '$dir_archive.xcarchive' ".
+            "-exportOptionsPlist '$fh_plist' ".
+            "-exportPath '$sel_output' ".
+            "";
+
+        if ($VERBOSITY > 0)
+        {
+          sinfo "removing .app archive directory:";
+          sinfo _TAB . "$dir_archive.xcarchive";
+        }
+        rmr "$dir_archive.xcarchive";
+
+        if (0 != $exec_retcode)
+        {
+          ohno clr([_ERROR_COLOR], "failed to export project, re-run with verbose>=2 (-vv) to view compiler log");
+        }
+
+        my %dist_package = ();
+
+        $dist_package{$sel_output} = 1;
+
+        if (scalar keys %source_name > 0)
+        {
+          sinfo "copying source path"
+            if $VERBOSITY > 0;
+
+          while (my ($orig_path, $formatted_name) = each %source_name)
+          {
+            my $source_dir = catpath dirname($sel_output), $formatted_name;
+            shell_cmd "cp -r '$orig_path' '$source_dir'";
+            my $source_pkg =
+              compress_archive(
+                $source_dir,
+                $compression_scheme,
+                $compression_extension,
+                basename $orig_path);
+
+            $dist_package{$source_pkg} = 1;
+            $dist_package{$source_dir} = 1;
+          }
+        }
+
+        if (defined $cloCompress and
+            defined $compression_scheme and
+            defined $compression_extension)
+        {
+          my $output_archive =
+            compress_archive(
+              $sel_output,
+              $compression_scheme,
+              $compression_extension,
+              rmfileext(basename($proj_path)),
+              $app_version);
+
+          $dist_package{$output_archive} = 1;
+        }
+
+        sinfo "distribution package(s) created:";
+        sinfo _TAB . $_ for sort keys %dist_package;
+
+        sinfo header_line $row_width, "SUCCESS", "bigreen";
+      }
+    }
+    else
+    {
+      ohno clr([_ERROR_COLOR], "invalid project: file not found: $pbxproj_path");
+    }
+  }
+  else
+  {
+    ohno clr([_ERROR_COLOR], "no project file specified, see -h for usage");
+    #final usage;
+  }
+}

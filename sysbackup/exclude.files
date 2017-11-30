@@ -1,0 +1,19 @@
+/backup/lost+found
+/backup/System
+/backup/VirtualBox
+/cdrom
+/dev
+/home/*/.gvfs
+/home/*/.cache
+/home/*/.local/share/Trash
+/home/*/VirtualBox VMs
+/initrd.img
+/lost+found
+/media
+/mirror
+/mnt
+/proc
+/run
+/sys
+/tmp
+/vmlinuz
