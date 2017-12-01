@@ -23,21 +23,6 @@ function manbuiltin # easy access to bash built-ins
   #help $1 # another potential doc source
 }
 
-function strmunge
-{
-  if ! echo "${1}" | \grep -Eq "(^|:)${2}($|:)"
-  then
-    if [[ "${3}" = "after" ]]
-    then
-      echo "${1}:${2}"
-    else
-      echo "${2}:${1}"
-    fi
-  else
-    echo "${1}"
-  fi
-}
-
 function useshopt
 {
   isset=$( shopt "${1}" > /dev/null ; printf $? )
@@ -260,14 +245,6 @@ function tree
   fi
 }
 
-function pathadd
-{
-  if [ -d "$1" ] && [[ ":$PATH:" != *":$1:"* ]]
-  then
-    PATH="$1:${PATH}"
-  fi
-}
-
 function now_long
 {
   date +"${DATETIME_FORMAT_LONG}"
@@ -386,17 +363,65 @@ function quiet_nohup
   fi
 }
 
-function absdirpath # absolute directory path to file/dir
+function abspath
 {
-  if [[ $# > 0 ]]
-  then
-    RELATIVE_PATH=${1}
-    if [[ ! -d "${RELATIVE_PATH}" ]]
-    then
-      RELATIVE_PATH=$( dirname "${RELATIVE_PATH}" )
-    fi
-    echo $( cd "${RELATIVE_PATH}" ; pwd -P )
-  fi
+  # bash doesn't have a truly portable+reliable means
+  perl -MCwd=abs_path -MFile::Spec=rel2abs,canonpath \
+    -e 'print abs_path($_=(shift)||".") || File::Spec->canonpath(File::Spec->rel2abs($_))' "${1}"
+}
+
+function iscmd
+{
+  [[ $# -gt 0 ]] && silent type -t "${1}" && echo 1
+}
+
+function pathadd
+{
+  # this might be a tad overkill, but it is an extremely flexible method for
+  # adding paths to traditional colon-delimited path lists (e.g. $PATH)
+  read -re -d '' script <<'PL'
+use strict;
+use warnings;
+
+# generates a closure over @p
+sub add
+{
+  my @p = @_;
+  shift(@p) =~ /^\s*(last|end|after)\s*$/i
+    ? sub {    push @p, @_ if @_; @p }
+    : sub { unshift @p, @_ if @_; @p }
+}
+
+my ($envpath, $pos, @path) = @ARGV;
+
+my $newpath = quotemeta join ':', @path;
+my $add = add($pos || '', grep { $_ !~ /(^|:)${newpath}($|:)/ } split /:/, $envpath);
+
+print join ':', $add->(@path);
+PL
+
+  perl -e "${script}" $@
+}
+
+function pathdel
+{
+  # see function pathadd for overkill comment :)
+  read -re -d '' script <<'PL'
+use strict;
+use warnings;
+
+my ($envpath, @path) = @ARGV;
+
+my $newpath = quotemeta join ':', @path;
+print join ':', grep { $_ !~ /(^|:)${newpath}($|:)/ } split /:/, $envpath;
+PL
+
+  perl -e "${script}" $@
+}
+
+function haspath
+{
+  echo "${1}" | \grep -Eq "(^|:)${2}($|:)"
 }
 
 function touchsz

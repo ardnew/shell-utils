@@ -34,6 +34,9 @@ alias             l='ls -CF'
 alias            ll="l -$LSOPT_DETAIL_DEF"
 alias            la="l -$LSOPT_DETAIL_MOST"
 alias           lla="l -$LSOPT_DETAIL_ALL"
+test ${HOST_IS_OSX}                                                            \
+  && alias      llC='CLICOLOR_FORCE=1 ll'                                      \
+  || alias      llC='ll --color=always'
 alias         bytes='xxd -c1'
 alias          bits='xxd -c1 -b'
 alias            df='df -h'
@@ -42,8 +45,11 @@ alias          time='command time' # use the system util, not the shell builtin
 alias          sudo='sudo -E'
 alias          less='less -r'
 [[ $( grep --version 2>&1 | \grep -ci gnu ) -eq 0 ]]                           \
-  && alias     grep='grep --color=always -E'                                   \
-  || alias     grep='grep --color=always -P' # PCRE by default
+  && alias     grep='grep --color=auto -E'                                     \
+  || alias     grep='grep --color=auto -P' # PCRE by default
+[[ $( grep --version 2>&1 | \grep -ci gnu ) -eq 0 ]]                           \
+  && alias    grepC='grep --color=always -E'                                   \
+  || alias    grepC='grep --color=always -P' # PCRE by default
 alias         egrep='grep --color=always -E'
 alias          cols='tput cols'
 

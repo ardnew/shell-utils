@@ -17,20 +17,27 @@
 #  session-wide variables
 # ------------------------------------------------------------------------------
 
+[[ ${OSTYPE} = *darwin* ]] && export HOST_IS_OSX=1
+[[ ${OSTYPE} = *cygwin* ]] && export HOST_IS_CYGWIN=1
+
 export PARENT_PROFILE="/etc/profile"
 [[ -f "${PARENT_PROFILE}" ]] && . "${PARENT_PROFILE}" # first and foremost
 
-export BASH_ALIASES="${HOME}/.bash_aliases"
 export BASH_FUNCTIONS="${HOME}/.bash_functions"
+[[ -f "${BASH_FUNCTIONS}" ]] && . "${BASH_FUNCTIONS}"
+
+export PATH=$( pathadd "${PATH}" before "${HOME}/bin" "${HOME}/.bin" "/opt/local/bin" "/usr/local/bin" )
+export LD_LIBRARY_PATH=$( pathadd "${LD_LIBRARY_PATH}" before "${HOME}/lib" "${HOME}/.lib" )
+export PERL5LIB=$( pathadd "${PERL5LIB}" before "${HOME}/lib/perl" "${HOME}/.lib/perl" )
+
+# make sure aliases get set -after- we've configured our bin/lib paths
+export BASH_ALIASES="${HOME}/.bash_aliases"
+[[ -f "${BASH_ALIASES}" ]] && . "${BASH_ALIASES}"
+
 export BASH_COLORS="${HOME}/.bash_colors"
+[[ -f "${BASH_COLORS}" ]] && . "${BASH_COLORS}"
 
 export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
-
-# paths to prepend to $PATH in descending precedence
-BIN_PATH=( "${HOME}/.bin" "${HOME}/bin" "/opt/local/bin" "/usr/local/bin" )
-
-# paths to prepend to LD_LIBRARY_PATH in descending precedence
-LIB_PATH=( "${HOME}/.lib" "${HOME}/lib" )
 
 # ------------------------------------------------------------------------------
 #  some other convenient constants
@@ -51,39 +58,8 @@ export  GB_BYTES=$((  $KB_BYTES ** 3  ))
 export GiB_BYTES=$(( $KiB_BYTES ** 3  ))
 
 # ------------------------------------------------------------------------------
-#  configure executable and library paths
+#  configure other special aliases
 # ------------------------------------------------------------------------------
-
-# we need this function -before- we actually source .bash_functions
-function pathmunge
-{
-  ! echo "${1}" | \grep -Eq "(^|:)${2}($|:)" && echo "${2}:${1}" || echo "${1}"
-}
-
-for (( idx=${#BIN_PATH[@]}-1 ; idx>=0 ; --idx ))
-do
-  [[ -d "${BIN_PATH[idx]}" ]] \
-    && PATH=$( pathmunge "${PATH}" "${BIN_PATH[idx]}" )
-done
-
-for (( idx=${#LIB_PATH[@]}-1 ; idx>=0 ; --idx ))
-do
-  [[ -d "${LIB_PATH[idx]}" ]] \
-    && LD_LIBRARY_PATH=$( pathmunge "${LD_LIBRARY_PATH}" "${LIB_PATH[idx]}" )
-done
-
-export PERL5LIB=$( pathmunge "${PERL5LIB}" "${HOME}/.lib/perl" )
-
-# ------------------------------------------------------------------------------
-#  configure aliases and functions only after we've set $PATH and friends
-# ------------------------------------------------------------------------------
-
-[[ ${OSTYPE} = *darwin* ]] && export HOST_IS_OSX=1
-[[ ${OSTYPE} = *cygwin* ]] && export HOST_IS_CYGWIN=1
-
-[[ -f "${BASH_ALIASES}" ]] && . "${BASH_ALIASES}"
-[[ -f "${BASH_FUNCTIONS}" ]] && . "${BASH_FUNCTIONS}"
-[[ -f "${BASH_COLORS}" ]] && . "${BASH_COLORS}"
 
 # create option flags to include all of my perl modules for the inline perl `pe` alias
 pkgdir=ardnew
@@ -114,11 +90,15 @@ alias  sifti="pe 'sifti shift, @ARGV'"
 alias   bury="pe 'bury shift, @ARGV'"
 alias  buryi="pe 'buryi shift, @ARGV'"
 
+# ------------------------------------------------------------------------------
+#  configure dynamic shell prompt based on host system and user
+# ------------------------------------------------------------------------------
+
 # prompt design
 ss="\[$BIBlack\]::\[$Color_Off\]"
 DATETIME="\[$IWhite\]\D{%d-%b-%Y %H:%M:%S}\[$Color_Off\]"
 HOSTNAME="\[$Blue\]"'$(hostname)'"\[$Color_Off\]" # inefficient, but functional
-CURRPATH="\[$IGreen\]\w\[$Color_Off\]"
+CURRPATH="\[$ICyan\]\w\[$Color_Off\]"
 EXITCODE="\[$White\]\$?\[$Color_Off\]"
 
 if [[ -n ${SSH_CONNECTION} ]]
