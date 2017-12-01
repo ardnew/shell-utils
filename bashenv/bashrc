@@ -26,9 +26,9 @@ export PARENT_PROFILE="/etc/profile"
 export BASH_FUNCTIONS="${HOME}/.bash_functions"
 [[ -f "${BASH_FUNCTIONS}" ]] && . "${BASH_FUNCTIONS}"
 
-export PATH=$( pathadd "${PATH}" before "${HOME}/bin" "${HOME}/.bin" "/opt/local/bin" "/usr/local/bin" )
-export LD_LIBRARY_PATH=$( pathadd "${LD_LIBRARY_PATH}" before "${HOME}/lib" "${HOME}/.lib" )
-export PERL5LIB=$( pathadd "${PERL5LIB}" before "${HOME}/lib/perl" "${HOME}/.lib/perl" )
+export PATH=$( pathadd "PATH" before "${HOME}/bin" "${HOME}/.bin" "/opt/local/bin" "/usr/local/bin" )
+export LD_LIBRARY_PATH=$( pathadd "LD_LIBRARY_PATH" before "${HOME}/lib" "${HOME}/.lib" )
+export PERL5LIB=$( pathadd "PERL5LIB" before "${HOME}/lib/perl" "${HOME}/.lib/perl" )
 
 # make sure aliases get set -after- we've configured our bin/lib paths
 export BASH_ALIASES="${HOME}/.bash_aliases"
@@ -58,75 +58,82 @@ export  GB_BYTES=$((  $KB_BYTES ** 3  ))
 export GiB_BYTES=$(( $KiB_BYTES ** 3  ))
 
 # ------------------------------------------------------------------------------
-#  configure other special aliases
-# ------------------------------------------------------------------------------
-
-# create option flags to include all of my perl modules for the inline perl `pe` alias
-pkgdir=ardnew
-peflag=-le #default flags for ``pe'' alias
-pnflag=-lne
-ppflag=-lpe
-allmod=
-
-while read -re dir
-do
-  if [[ -d "${dir}/${pkgdir}" ]]
-  then
-    mod=("${dir}/${pkgdir}"/*.pm)
-    mod=(${mod[@]##*/}) # remove everything before the filenames
-    mod=(${mod[@]%.pm}) # remove the file extensions
-    mod=(${mod[@]/%/=:all}) # add the ":all" export tag to each module
-    allmod=("${mod[@]/#/-Mardnew::}")
-    break
-  fi
-done < <(perl -e 'print join $/, @INC')
-
-alias     pe="perl ${allmod[@]} ${peflag}"
-alias     pn="perl ${allmod[@]} ${pnflag}"
-alias     pp="perl ${allmod[@]} ${ppflag}"
-alias   walk="pe 'my \$c = shift; walk sub { eval \$c; if(\$@){ print \$@; exit } }, @ARGV'"
-alias   sift="pe 'sift shift, @ARGV'"
-alias  sifti="pe 'sifti shift, @ARGV'"
-alias   bury="pe 'bury shift, @ARGV'"
-alias  buryi="pe 'buryi shift, @ARGV'"
-
-# ------------------------------------------------------------------------------
 #  configure dynamic shell prompt based on host system and user
 # ------------------------------------------------------------------------------
 
-# prompt design
-ss="\[$BIBlack\]::\[$Color_Off\]"
-DATETIME="\[$IWhite\]\D{%d-%b-%Y %H:%M:%S}\[$Color_Off\]"
-HOSTNAME="\[$Blue\]"'$(hostname)'"\[$Color_Off\]" # inefficient, but functional
-CURRPATH="\[$ICyan\]\w\[$Color_Off\]"
-EXITCODE="\[$White\]\$?\[$Color_Off\]"
 
-if [[ -n ${SSH_CONNECTION} ]]
-then
-  CLIENTIP=( ${SSH_CONNECTION} )
-  CONNSTAT="$Blue${CLIENTIP[0]}$ICyan@$Color_Off"
-else
-  CONNSTAT=
-fi
 
-if [[ -n ${ENV_PREFIX} ]] && [[ "${LYNXOS_PREFIX}" == "${ENV_PREFIX}" ]]
-then
-  PLATFORM="\[$IYellow\]LynxOS-178 CDK\[$Color_Off\]"
-else
-  test ${HOST_IS_OSX} \
-    && PLATFORM="\[$IBlue\]$(uname -sm)\[$Color_Off\]" \
-    || PLATFORM="\[$IBlue\]$(uname -om)\[$Color_Off\]"
-fi
+__prompt()
+{
+  local exitcode=$?
+  local shellpid=$$
 
-if [[ "$(whoami)" == "root" ]]
-then
-  PROMPT="\[$Red\]|\[$Color_Off\]"
-else
-  PROMPT="|"
-fi
+  local datetime=$( date +"%d-%b-%Y %H:%M:%S" )
+  local hostname=$( hostname )
 
-export PS1="\n${PROMPT} ${DATETIME} ${ss} ${PLATFORM} ${ss} ${CONNSTAT}${HOSTNAME} ${ss} ${CURRPATH} ${ss} ${EXITCODE}\n${PROMPT} "
-export PROMPT_COMMAND='echo -ne ""'
+  local retlen=${#exitcode}
+  local pidlen=${#shellpid}
+  local widec1=$(( retlen > pidlen ? retlen : pidlen ))
+
+  local p_shellpid=
+  local p_exitcode=
+  if [[ ${exitcode} -ne 0 ]]
+  then
+    p_exitcode="\[$Red\]$( printf "%*s" "${widec1}" "${exitcode}" )\[$Color_Off\]"
+    p_shellpid="\[$IRed\]$( printf "%*s" "${widec1}" "${shellpid}" )\[$Color_Off\]"
+  else
+    p_exitcode="\[$White\]$( printf "%*s" "${widec1}" "${exitcode}" )\[$Color_Off\]"
+    p_shellpid="\[$White\]$( printf "%*s" "${widec1}" "${shellpid}" )\[$Color_Off\]"
+  fi
+
+  local p_connstat=
+  local p_clientid=
+  local conlen=
+  if [[ -n ${SSH_CONNECTION} ]]
+  then
+    p_clientid=( ${SSH_CONNECTION} )
+    p_connstat="$Blue${p_clientid[0]}$IBlue@$Color_Off"
+    conlen=$(( ${#p_clientid[0]} + 1 ))
+  else
+    p_clientid=()
+    p_connstat=""
+    conlen=0
+  fi
+
+  local dtmlen=$( printf "${datetime}" | wc -c )
+  local hnmlen=$(( $( printf "${hostname}" | wc -c ) + ${conlen} ))
+  local widec2=$(( dtmlen > hnmlen ? dtmlen : hnmlen ))
+
+  local p_hostname="${p_connstat}\[$Blue\]$( printf "%*s" $(( ${widec2} - ${conlen} )) "${hostname}" )\[$Color_Off\]"
+  local p_datetime="\[$IBlue\]$( printf "%*s" ${widec2} "${datetime}" )\[$Color_Off\]"
+
+  local p_platform=
+  if [[ -n ${ENV_PREFIX} ]] && [[ "${LYNXOS_PREFIX}" == "${ENV_PREFIX}" ]]
+  then
+    p_platform="\[$IYellow\]LynxOS-178 CDK\[$Color_Off\]"
+  else
+    test ${HOST_IS_OSX} \
+      && p_platform="\[$Cyan\]$(uname -sm)\[$Color_Off\]" \
+      || p_platform="\[$Cyan\]$(uname -om)\[$Color_Off\]"
+  fi
+
+  local p_prompter=
+  if [[ ${UID} -eq 0 ]]
+  then
+    p_prompter="\[$Red\]|\[$Color_Off\]"
+  else
+    p_prompter="|"
+  fi
+
+  local ss="\[$BIBlack\]::\[$Color_Off\]"
+  local p_currpath="\[$ICyan\]\w\[$Color_Off\]"
+
+  PS1="\n${p_prompter} ${p_shellpid} ${ss} ${p_datetime} ${ss} ${p_platform}"
+  PS1+="\n${p_prompter} ${p_exitcode} ${ss} ${p_hostname} ${ss} ${p_currpath}"
+  PS1+="\n${p_prompter} "
+}
+
+export PROMPT_COMMAND=__prompt
 
                                                       [[ $- != *i* ]] && return
 # ------------------------------------------------------------------------------

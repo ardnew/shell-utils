@@ -11,31 +11,31 @@
 ################################################################################
 
 
-function escape
+escape()
 {
-  args="$@"
+  local args="$@"
   printf "$args" | sed -e "s/'/'\\\\''/g; 1s/^/'/; \$s/\$/'/"
 }
 
-function manbuiltin # easy access to bash built-ins
+manbuiltin() # easy access to bash built-ins
 {
   man bash | less -p "^ {4,7}$1 "
   #help $1 # another potential doc source
 }
 
-function useshopt
+useshopt()
 {
-  isset=$( shopt "${1}" > /dev/null ; printf $? )
+  local isset=$( shopt "${1}" > /dev/null ; printf $? )
   shopt -s "${1}" ; "${@:2}"
   [[ 1 == "${isset}" ]] && shopt -u "${1}"
 }
 
-function ignorecase
+ignorecase()
 {
   useshopt "nocasematch" "$@"
 }
 
-function uc
+uc()
 {
   if [[ $# -gt 0 ]]
   then
@@ -43,7 +43,7 @@ function uc
   fi
 }
 
-function lc
+lc()
 {
   if [[ $# -gt 0 ]]
   then
@@ -51,12 +51,12 @@ function lc
   fi
 }
 
-function nullglob
+nullglob()
 {
   useshopt "nullglob" "$@"
 }
 
-function streq
+streq()
 {
   if [[ ${#1} -eq ${#2} ]] && [[ $1 == $2 ]] ; then
     echo $TRUE ;
@@ -65,27 +65,27 @@ function streq
   fi
 }
 
-function streqi
+streqi()
 {
   ignorecase streq "$@"
 }
 
-function silent
+silent()
 {
   [[ $# -gt 0 ]] && "$@" &> /dev/null
 }
 
-function silentout
+silentout()
 {
   [[ $# -gt 0 ]] && "$@" 1> /dev/null
 }
 
-function silenterr
+silenterr()
 {
   [[ $# -gt 0 ]] && "$@" 2> /dev/null
 }
 
-function rmtrailing
+rmtrailing()
 {
   if [[ ${#} -gt 1 ]]
   then
@@ -94,7 +94,7 @@ function rmtrailing
   fi
 }
 
-function rmtrailingslashes
+rmtrailingslashes()
 {
   if [[ ${#} -gt 0 ]]
   then
@@ -102,7 +102,7 @@ function rmtrailingslashes
   fi
 }
 
-function dos2unix
+dos2unix()
 {
   if type -P dos2unix > /dev/null
   then
@@ -112,7 +112,7 @@ function dos2unix
   fi
 }
 
-function unix2dos
+unix2dos()
 {
   if type -P unix2dos > /dev/null
   then
@@ -122,7 +122,7 @@ function unix2dos
   fi
 }
 
-function lineat
+lineat()
 {
   # prints the N'th line of each file specified, prefixed by the
   #  filename if more than one file
@@ -133,10 +133,10 @@ function lineat
   done
 }
 
-function lineof
+lineof()
 {
-  args=()
-  case=
+  local args=()
+  local case=
 
   # poor man's option parsing
   while test $# -gt 0
@@ -152,7 +152,7 @@ function lineof
   #  specified, prefixed by the filename if more than one file
   for curr in "${args[@]:1}"
   do
-    code="/${args[0]}/${case} and print $..$/"
+    local code="/${args[0]}/${case} and print $..$/"
     if [[ ${#args[@]} -gt 2 ]]
     then
       for line in $( perl -ne "${code}" "${curr}" )
@@ -165,10 +165,10 @@ function lineof
   done
 }
 
-function perlprof
+perlprof()
 {
   #
-  # this function uses module Devel::NYTProf to generate profiling statistics for perl programs
+  # this uses() module Devel::NYTProf to generate profiling statistics for perl programs
   #
   # simply use 'perlprof' in place of 'perl' when invoking the interpreter, and a corresponding
   # output file "./<basename of script>-nytprof.out" will be generated. the options below will
@@ -184,35 +184,35 @@ function perlprof
   #  nytprofmerge - reads multiple NYTProf output files and outputs a merged one
   #  nytprofpf    - generates a report for plat_forms
   #
-  # by default, this function will process the output file through nytprofhtml into a directory
+  # by default, this will() process the output file through nytprofhtml into a directory
   # with a name similar to the output file (according to the options below). creates the
   # directory if needed, and deletes any preexisting contents otherwise.
   #
 
   # see section NYTPROF ENVIRONMENT VARIABLE in perldoc Devel::NYTProf
-  file_pid=1 # addpid
-  file_timestamp=1 # addtimestamp
-  file_savesrc=0 # savesrc
-  file_compress=0 # compress
-  out_trace=0 # trace
-  prof_start=begin # start
-  #prof_start=init # start
-  prof_optimize=0 # optimize # disable the perl (source code) optimizer for more accurate line references
-  prof_subs=1 # subs
-  prof_blocks=1 # blocks
-  prof_statements=1 # stmts
-  prof_slowops=2 # slowops
-  prof_sigexit="int,hup,abrt,kill,quit,segv,term" # sigexit # see kill -l for list
-  prof_forkdepth=-1 # forkdepth # -1 is unlimited depth
-  prof_clock=6 # clock # CLOCK_MONOTONIC # for definitions, see:  grep -r 'define *CLOCK_' /usr/include
+  local file_pid=1 # addpid
+  local file_timestamp=1 # addtimestamp
+  local file_savesrc=0 # savesrc
+  local file_compress=0 # compress
+  local out_trace=0 # trace
+  local prof_start=begin # start
+  #local prof_start=init # start
+  local prof_optimize=0 # optimize # disable the perl (source code) optimizer for more accurate line references
+  local prof_subs=1 # subs
+  local prof_blocks=1 # blocks
+  local prof_statements=1 # stmts
+  local prof_slowops=2 # slowops
+  local prof_sigexit="int,hup,abrt,kill,quit,segv,term" # sigexit # see kill -l for list
+  local prof_forkdepth=-1 # forkdepth # -1 is unlimited depth
+  local prof_clock=6 # clock # CLOCK_MONOTONIC # for definitions, see:  grep -r 'define *CLOCK_' /usr/include
 
-  file_name="" # file
+  local file_name="" # file
 
-  output_dir="."
-  output_suffix="-nytprof.out"
+  local output_dir="."
+  local output_suffix="-nytprof.out"
   for word in $@
   do
-    file_bname=$(basename "${word}")
+    local file_bname=$(basename "${word}")
     perl -ne 'print; /^-\S*e\S*$/ and exit 1' <<<"${word}"
     [[ $? == 1 ]] && file_name="${output_dir}/inline${output_suffix}" && break
     [[ -f $word ]] && file_name="${output_dir}/${file_bname}${output_suffix}" && break
@@ -222,138 +222,135 @@ function perlprof
 
   PERL5OPT="-d:NYTProf" perl $@
 
-  profile=$(ls -t "${file_name}"* | head -n 1)
+  local profile=$(ls -t "${file_name}"* | head -n 1)
 
   if [[ -f "${profile}" ]]
   then
-    output=${output_dir}/$(basename "${file_name}" | sed -e "s/${output_suffix}.*/${output_suffix}/")
+    local output=${output_dir}/$(basename "${file_name}" | sed -e "s/${output_suffix}.*/${output_suffix}/")
     nytprofhtml --file "${profile}" --out "${output}" --delete
   else
     echo "error creating report: no such profile: ${profile}"
   fi
 }
 
-function tree
+tree()
 {
   if type -P tree > /dev/null
   then
     command tree "$@"
   else
-    path="."
+    local path="."
     [[ -n ${1} ]] && path="${1}"
     find "${path}" | sed -e 's;[^/]*/;|____;g' -e 's;____|;  |;g'
   fi
 }
 
-function now_long
+now_long()
 {
   date +"${DATETIME_FORMAT_LONG}"
 }
 
-function now
+now()
 {
   date +"${DATETIME_FORMAT}"
 }
 
-function readablesec
+readablesec()
 {
   if [[ $# -gt 0 ]]
   then
-
-    seconds=$1
-
+    local seconds=${1}
     if [[ $seconds -gt 86400 ]] # seconds in a day
     then
       printf "%d days " $(( seconds / 86400 ))
     fi
-
     date -d "1970-01-01 + $seconds seconds" "+%H hrs %M min %S sec"
 
   fi
 }
 
-function tgzbackup
+tgzbackup()
 {
   if [[ ${#} -gt 0 ]]
   then
     if [[ -d ${1} ]]
     then
-      SOURCE=`rmtrailingslashes "${1}"`
-      TARGET="${SOURCE}__`now`.tgz"
-      echo "[+] compressing \"${1}\" to \"${TARGET}\""
-      tar -czvf "${TARGET}" "${SOURCE}"
+      local src=`rmtrailingslashes "${1}"`
+      local dst="${src}__`now`.tgz"
+      echo "[+] compressing \"${1}\" to \"${dst}\""
+      tar -czvf "${dst}" "${src}"
     else
       echo "error: input must be a directory"
     fi
   fi
 }
 
-function tbzbackup
+tbzbackup()
 {
   if [[ ${#} -gt 0 ]]
   then
     if [[ -d ${1} ]]
     then
-      SOURCE=`rmtrailingslashes "${1}"`
-      TARGET="${SOURCE}__`now`.tbz"
-      echo "[+] compressing \"${1}\" to \"${TARGET}\""
-      tar -cjvf "${TARGET}" "${SOURCE}"
+      local src=`rmtrailingslashes "${1}"`
+      local dst="${src}__`now`.tbz"
+      echo "[+] compressing \"${1}\" to \"${dst}\""
+      tar -cjvf "${dst}" "${src}"
     else
       echo "error: input must be a directory"
     fi
   fi
 }
 
-function zipbackup
+zipbackup()
 {
   if [[ ${#} -gt 0 ]]
   then
     if [[ -d ${1} ]]
     then
-      SOURCE=`rmtrailingslashes "${1}"`
-      TARGET="${SOURCE}__`now`.zip"
-      echo "[+] compressing \"${SOURCE}\" to \"${TARGET}\""
-      zip -r "${TARGET}" "${SOURCE}"
+      local src=`rmtrailingslashes "${1}"`
+      local dst="${src}__`now`.zip"
+      echo "[+] compressing \"${src}\" to \"${dst}\""
+      zip -r "${dst}" "${src}"
     else
       echo "error: input must be a directory"
     fi
   fi
 }
 
-function backup
+backup()
 {
   if [[ ${#} -gt 0 ]]
   then
-    SOURCE=`rmtrailingslashes "${1}"`
-    TARGET="${SOURCE}__`now`"
-    echo "[+] copying \"${1}\" to \"${TARGET}\""
-    cp -r "${SOURCE}" "${TARGET}"
+    local src=`rmtrailingslashes "${1}"`
+    local dst="${src}__`now`"
+    echo "[+] copying \"${1}\" to \"${dst}\""
+    cp -r "${src}" "${dst}"
   fi
 }
 
-function stamp
+stamp()
 {
   if [[ $# -gt 0 ]]
   then
-    SOURCE=`rmtrailingslashes "${1}"`
-    TARGET="${SOURCE}__`now`"
-    mv "${SOURCE}" "${TARGET}"
-    echo "${TARGET}"
+    local src=`rmtrailingslashes "${1}"`
+    local dst="${src}__`now`"
+    mv "${src}" "${dst}"
+    echo "${dst}"
   fi
 }
 
-function stamp_unixtime
+stamp_unixtime()
 {
   if [[ $# -gt 0 ]]
   then
-    SOURCE=`rmtrailingslashes "${1}"`
-    TARGET="${SOURCE}".`date "+%s"`
-    mv "${SOURCE}" "${TARGET}"
-    echo "${TARGET}"
+    local src=`rmtrailingslashes "${1}"`
+    local dst="${src}".`date "+%s"`
+    mv "${src}" "${dst}"
+    echo "${dst}"
   fi
 }
 
-function quiet_nohup
+quiet_nohup()
 {
   if [[ $# = 0 || -z $@ ]]
   then
@@ -363,74 +360,79 @@ function quiet_nohup
   fi
 }
 
-function abspath
+abspath()
 {
   # bash doesn't have a truly portable+reliable means
   perl -MCwd=abs_path -MFile::Spec=rel2abs,canonpath \
     -e 'print abs_path($_=(shift)||".") || File::Spec->canonpath(File::Spec->rel2abs($_))' "${1}"
 }
 
-function iscmd
+iscmd()
 {
   [[ $# -gt 0 ]] && silent type -t "${1}" && echo 1
 }
 
-function pathadd
+pathadd()
 {
+  # first argument is the name of the environment variable instead of its
+  # evaluated value (e.g. "PATH" instead of "$PATH"), because an empty env var
+  # will evaluate to nothing, causing the $pos argument to be mistaken for the
+  # environment variable's value. the name of the variable will never be empty
+
   # this might be a tad overkill, but it is an extremely flexible method for
   # adding paths to traditional colon-delimited path lists (e.g. $PATH)
   read -re -d '' script <<'PL'
-use strict;
-use warnings;
+    use strict;
+    use warnings;
 
-# generates a closure over @p
-sub add
-{
-  my @p = @_;
-  shift(@p) =~ /^\s*(last|end|after)\s*$/i
-    ? sub {    push @p, @_ if @_; @p }
-    : sub { unshift @p, @_ if @_; @p }
-}
+    # generates a closure over @p
+    sub add
+    {
+      my @p = @_;
+      shift(@p) =~ /^\s*(last|end|after)\s*$/i
+        ? sub {    push @p, @_ if @_; @p }
+        : sub { unshift @p, @_ if @_; @p }
+    }
 
-my ($envpath, $pos, @path) = @ARGV;
+    my ($envvar, $pos, @path) = @ARGV;
 
-my $newpath = quotemeta join ':', @path;
-my $add = add($pos || '', grep { $_ !~ /(^|:)${newpath}($|:)/ } split /:/, $envpath);
+    my $newpath = quotemeta join ':', @path;
+    my $add = add($pos || '', grep { $_ !~ /(^|:)${newpath}($|:)/ } split /:/, $ENV{$envvar} || "");
 
-print join ':', $add->(@path);
+    print join ':', $add->(@path);
 PL
 
   perl -e "${script}" $@
 }
 
-function pathdel
+pathdel()
 {
-  # see function pathadd for overkill comment :)
+  # see pathadd() for arguments and overkill comment :)
   read -re -d '' script <<'PL'
-use strict;
-use warnings;
+    use strict;
+    use warnings;
 
-my ($envpath, @path) = @ARGV;
+    my ($envvar, @path) = @ARGV;
 
-my $newpath = quotemeta join ':', @path;
-print join ':', grep { $_ !~ /(^|:)${newpath}($|:)/ } split /:/, $envpath;
+    my $newpath = quotemeta join ':', @path;
+    print join ':', grep { $_ !~ /(^|:)${newpath}($|:)/ } split /:/, $ENV{$envvar} || "";
 PL
 
   perl -e "${script}" $@
 }
 
-function haspath
+haspath()
 {
   echo "${1}" | \grep -Eq "(^|:)${2}($|:)"
 }
 
-function touchsz
+touchsz()
 {
   if [[ $# -ge 3 ]]
   then
-    file=$1
-    size=$2
-    sdev=$3
+    local file=${1}
+    local size=${2}
+    local sdev=${3}
     if [[ ! -f "${file}" ]]
     then
       if [[ "${size}" =~ ^[0-9]{1,10}$ ]]
@@ -440,6 +442,7 @@ function touchsz
         # too complex for the purpose of this function, so do it yourself
         if [[ ${size} -le $(( 4 * $GiB_BYTES )) ]]
         then
+          local dev=
           if [[ "${sdev}" =~ ^z(e(r(o)?)?)?$ ]]
           then
             dev="/dev/zero"
@@ -472,25 +475,25 @@ function touchsz
   fi
 }
 
-function findfatties
+findfatties()
 {
-  DIR=''
+  local dir=''
   if [[ ${#} -gt 0 ]]
   then
-    DIR=`rmtrailingslashes "${1}"`
+    dir=`rmtrailingslashes "${1}"`
   fi
 
-  if [[ -d "${DIR}" ]]
+  if [[ -d "${dir}" ]]
   then
-    find "${DIR}" -type f -exec stat -f "%z%t%N" {} \+ | sort -nr
+    find "${dir}" -type f -exec stat -f "%z%t%N" {} \+ | sort -nr
   else
-    echo "error: findfatties: not a directory: ${DIR}"
+    echo "error: findfatties: not a directory: ${dir}"
   fi
 }
 
-function proxy_set_HOST
+proxy_set_HOST()
 {
-  __proxy_host__='HOST:80'
+  local __proxy_host__='HOST:80'
 
   export http_proxy="http://$__proxy_host__"
   export HTTP_PROXY="http://$__proxy_host__"
@@ -501,9 +504,9 @@ function proxy_set_HOST
   unset no_proxy
 }
 
-function proxy_unset_all
+proxy_unset_all()
 {
-  __proxy_host__='localhost,127.0.0.0/8,*.local'
+  local __proxy_host__='localhost,127.0.0.0/8,*.local'
 
   export no_proxy="$__proxy_host__"
 
@@ -514,7 +517,7 @@ function proxy_unset_all
   unset HTTPS_PROXY
 }
 
-function cdiff
+cdiff()
 {
   if [[ ${#} -gt 1 ]]
   then
@@ -524,18 +527,18 @@ function cdiff
   fi
 }
 
-function usbdevices
+usbdevices()
 {
   # OS X only
   system_profiler SPUSBDataType | sed -ne '/USB Flash Drive/,$p' | sed -ne '/Volumes/,$p' | grep 'Mount Point' | sed -e 's/^ *Mount Point: //'
 }
 
-function screen.rpi
+screen.rpi()
 {
-  devuart=/dev/cu.SLAB_USBtoUART
-  baud=115200
+  local devuart=/dev/cu.SLAB_USBtoUART
+  local baud=115200
 
-  devexists=0
+  local devexists=0
   while [[ ${devexists} -eq 0 ]]
   do
     ls "${devuart}" >/dev/null 2>&1
@@ -545,17 +548,17 @@ function screen.rpi
   [[ ${devexists} ]] && screen "${devuart}" "${baud}"
 }
 
-function expose-sdcard
+expose-sdcard()
 {
   if [[ $# -lt 2 ]]
   then
     cat <<USAGE
 usage: $0 </dev/sdcard> </output/file.vmdk>
 USAGE
-  else 
-    disk=${1}
-    vmdk=${2}
-    user=$(whoami)
+  else
+    local disk=${1}
+    local vmdk=${2}
+    local user=$(whoami)
 
     if [[ -f "${disk}" ]]
     then
@@ -564,7 +567,7 @@ USAGE
         echo "notice: deleting existing virtual disk file: ${vmdk}"
         sudo rm "${vmdk}"
       fi
-      
+
       sudo diskutil unmountDisk "${disk}"
       sudo VBoxManage internalcommands createrawvmdk -filename "${vmdk}" -rawdisk "${disk}"
       sudo chown "${user}" "${vmdk}"
@@ -578,12 +581,12 @@ USAGE
   fi
 }
 
-function chmod-tree-rw
+chmod-tree-rw()
 {
-  fmode=644
-  dmode=755
+  local fmode=644
+  local dmode=755
 
-  args=("${@}")
+  local args=("${@}")
 
   if [[ ${#} -lt 1 ]]
   then
@@ -608,11 +611,11 @@ function chmod-tree-rw
   done
 }
 
-function eval-loop
+eval-loop()
 {
   if [[ ${#} -gt 1 ]]
   then
-    _IFS="${IFS}"
+    local _IFS="${IFS}"
     IFS=$'\n'
     ${1} | while read -re s
     do
@@ -627,19 +630,19 @@ function eval-loop
   example to find all files below CWD whose output from ``file'' contains "dynamically linked":
     eval-loop 'find . -type f' '[[ $(file "$s") == *"dynamically linked"* ]] || continue ; echo $s'
 
-  example to unmount all USB mass storage devices using the ``usbdevices'' function in ~/.bashrc:
+  example to unmount all USB mass storage devices using the ``usbdevices'' in() ~/.bashrc:
     eval-loop 'usbdevices' 'sudo diskutil umount "$s"'
 USAGE
   fi
 }
 
-function writespeed
+writespeed()
 {
   if [[ $# -gt 0 ]]
   then
 
-    file=$1
-    path=$( dirname "${file}" )
+    local file=$1
+    local path=$( dirname "${file}" )
 
     if [[ ! -d "${path}" ]]
     then
@@ -665,7 +668,7 @@ function writespeed
       return 4
     fi
 
-    repeat=0
+    local repeat=0
     while [[ $repeat -eq 0 ]]
     do
       dd if=/dev/urandom of="${file}" bs=25M count=1 2>&1 |\
@@ -680,24 +683,24 @@ function writespeed
   fi
 }
 
-function chrome-tunnel
+chrome-tunnel()
 {
-  user='andrew'
-  host='192.168.2.1'
-  port='8123'
+  local user='andrew'
+  local host='192.168.2.1'
+  local port='8123'
 
   [[ ${#} -gt 0 ]] && user="${1}"
   [[ ${#} -gt 1 ]] && host="${2}"
   [[ ${#} -gt 2 ]] && port="${3}"
 
-  proctag='local socks5 proxy'
-  chromepath='google-chrome'
+  local proctag='local socks5 proxy'
+  local chromepath='google-chrome'
 
   ssh -fCND "0.0.0.0:${port}" "${user}"@"${host}" -- "${proctag}"
 
   "${chromepath}" --proxy-server="socks5://localhost:${port}"
 
-  procpid=$(pgrep -f "${proctag}")
+  local procpid=$(pgrep -f "${proctag}")
 
   if [[ ${#procpid} -gt 0 ]]
   then
@@ -707,12 +710,12 @@ function chrome-tunnel
   fi
 }
 
-function windows-special-folder
+windows-special-folder()
 {
-  codemin=0
-  codemax=255
+  local codemin=0
+  local codemax=255
 
-  errfile=$(mktemp -t "winsferr-XXXX")
+  local errfile=$(mktemp -t "winsferr-XXXX")
 
   if [[ $# -gt 0 ]]
   then
@@ -720,7 +723,7 @@ function windows-special-folder
   else
     for i in $( seq $codemin $codemax )
     do
-      sfpath=$( cygpath -au -F $i 2>"${errfile}" )
+      local sfpath=$( cygpath -au -F $i 2>"${errfile}" )
       if [[ 0 -eq $( stat -c"%s" "${errfile}" ) ]]
       then
         printf "[%3d] %s\n" "$i" "$sfpath"
