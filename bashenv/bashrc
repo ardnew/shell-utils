@@ -7,7 +7,7 @@
 #  date: 03/18/2013
 #
 #  auth: Andrew Shultzabarger
-# 
+#
 #  desc: initialization script for all bash shell sessions (both interactive
 #        and non-interactive!)
 #
@@ -37,7 +37,7 @@ LIB_PATH=( "${HOME}/.lib" "${HOME}/lib" )
 # ------------------------------------------------------------------------------
 
 export FALSE=0
-export TRUE=1 
+export TRUE=1
 
 export DATETIME_FORMAT_LONG="%Y-%h-%d %H:%M:%S"
 export DATETIME_FORMAT="%Y-%m-%d__%H-%M-%S"
@@ -117,25 +117,25 @@ alias  buryi="pe 'buryi shift, @ARGV'"
 # prompt design
 ss="\[$BIBlack\]::\[$Color_Off\]"
 DATETIME="\[$IWhite\]\D{%d-%b-%Y %H:%M:%S}\[$Color_Off\]"
-HOSTNAME="\[$BICyan\]"'$(hostname)'"\[$Color_Off\]" # inefficient, but functional
-CURRPATH="\[$ICyan\]\w\[$Color_Off\]"
-EXITCODE="\[$BIBlack\]\$?\[$Color_Off\]"
+HOSTNAME="\[$Blue\]"'$(hostname)'"\[$Color_Off\]" # inefficient, but functional
+CURRPATH="\[$IGreen\]\w\[$Color_Off\]"
+EXITCODE="\[$White\]\$?\[$Color_Off\]"
 
 if [[ -n ${SSH_CONNECTION} ]]
 then
   CLIENTIP=( ${SSH_CONNECTION} )
-  CONNSTAT="$IBlue${CLIENTIP[0]}$BIGreen@$Color_Off"
+  CONNSTAT="$Blue${CLIENTIP[0]}$ICyan@$Color_Off"
 else
   CONNSTAT=
 fi
 
 if [[ -n ${ENV_PREFIX} ]] && [[ "${LYNXOS_PREFIX}" == "${ENV_PREFIX}" ]]
 then
-  PLATFORM="\[$IBlue\]LynxOS-178 CDK\[$Color_Off\]"
+  PLATFORM="\[$IYellow\]LynxOS-178 CDK\[$Color_Off\]"
 else
   test ${HOST_IS_OSX} \
-    && PLATFORM="\[$Cyan\]$(uname -sm)\[$Color_Off\]" \
-    || PLATFORM="\[$Cyan\]$(uname -om)\[$Color_Off\]"
+    && PLATFORM="\[$IBlue\]$(uname -sm)\[$Color_Off\]" \
+    || PLATFORM="\[$IBlue\]$(uname -om)\[$Color_Off\]"
 fi
 
 if [[ "$(whoami)" == "root" ]]

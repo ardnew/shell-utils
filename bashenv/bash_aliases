@@ -87,6 +87,7 @@ then
   alias   restart.menu='killall -KILL SystemUIServer'
   alias restart.finder='killall -KILL Finder'
   alias         simctl='xcrun simctl'
+  alias       updatedb='/usr/libexec/locate.updatedb'
 fi
 
 #
