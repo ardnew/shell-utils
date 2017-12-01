@@ -1,3 +1,7 @@
+// echo utility that prints to stderr instead of stdout
+//   -n    - suppress trailing newline
+//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
