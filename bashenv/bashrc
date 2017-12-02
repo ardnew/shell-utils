@@ -61,8 +61,6 @@ export GiB_BYTES=$(( $KiB_BYTES ** 3  ))
 #  configure dynamic shell prompt based on host system and user
 # ------------------------------------------------------------------------------
 
-
-
 __prompt()
 {
   local exitcode=$?
@@ -128,9 +126,26 @@ __prompt()
   local ss="\[$BIBlack\]::\[$Color_Off\]"
   local p_currpath="\[$ICyan\]\w\[$Color_Off\]"
 
-  PS1="\n${p_prompter} ${p_shellpid} ${ss} ${p_datetime} ${ss} ${p_platform}"
-  PS1+="\n${p_prompter} ${p_exitcode} ${ss} ${p_hostname} ${ss} ${p_currpath}"
-  PS1+="\n${p_prompter} "
+  local row=( 
+      "\n${p_prompter} ${p_shellpid} ${ss} ${p_datetime} ${ss} ${p_platform}"
+      "\n${p_prompter} ${p_exitcode} ${ss} ${p_hostname} ${ss} ${p_currpath}"
+      "\n${p_prompter} "
+    )
+
+  local p_termwidth=$( cols )
+  local p_rowwide=0
+  for i in "${row[@]}"
+  do
+    len=$( uncolorseq "$i" | sed -e 's/^\\n//' | wc -c )
+    p_rowwide=$(( len > p_rowwide ? len : p_rowwide ))
+  done
+
+  if [[ ${p_rowwide} -gt ${p_termwidth} ]]
+  then
+    echo "too wide"
+  fi
+
+  PS1="$( arrjoin "" "${row[@]}" )"
 }
 
 export PROMPT_COMMAND=__prompt

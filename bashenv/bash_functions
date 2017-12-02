@@ -56,6 +56,24 @@ nullglob()
   useshopt "nullglob" "$@"
 }
 
+arrjoin()
+{ 
+  local IFS="$1"
+  shift
+  echo ${@}
+}
+
+maxlen()
+{
+  local wide=0
+  for e in "${@}"
+  do
+    len=${#e}
+    wide=$(( len > wide ? len : wide ))
+  done
+  echo ${wide}
+}
+
 streq()
 {
   if [[ ${#1} -eq ${#2} ]] && [[ $1 == $2 ]] ; then
