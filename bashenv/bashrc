@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export __DOT_BASHRC=1
 ################################################################################
 #
 #  file: ${HOME}/.bashrc
@@ -12,6 +13,12 @@
 #        and non-interactive!)
 #
 ################################################################################
+
+# ------------------------------------------------------------------------------
+#  session configuration
+# ------------------------------------------------------------------------------
+
+unset_prompt_colors=
 
 # ------------------------------------------------------------------------------
 #  session-wide variables
@@ -28,7 +35,7 @@ export BASH_FUNCTIONS="${HOME}/.bash_functions"
 
 export PATH=$( pathadd "PATH" before "${HOME}/bin" "${HOME}/.bin" "/opt/local/bin" "/usr/local/bin" )
 export LD_LIBRARY_PATH=$( pathadd "LD_LIBRARY_PATH" before "${HOME}/lib" "${HOME}/.lib" )
-export PERL5LIB=$( pathadd "PERL5LIB" before "${HOME}/lib/perl" "${HOME}/.lib/perl" )
+export PERL5LIB=$( pathadd "PERL5LIB" before "${HOME}/lib/perl" "${HOME}/.lib/perl" "${HOME}/Library/Perl/lib/perl5" "${HOME}/Library/Perl/lib/perl5/site_perl/5.24" )
 
 # make sure aliases get set -after- we've configured our bin/lib paths
 export BASH_ALIASES="${HOME}/.bash_aliases"
@@ -63,89 +70,104 @@ export GiB_BYTES=$(( $KiB_BYTES ** 3  ))
 
 __prompt()
 {
-  local exitcode=$?
-  local shellpid=$$
+  # snag this before it gets overwritten
+  local __exit_code=$?
 
-  local datetime=$( date +"%d-%b-%Y %H:%M:%S" )
-  local hostname=$( hostname )
-
-  local retlen=${#exitcode}
-  local pidlen=${#shellpid}
-  local widec1=$(( retlen > pidlen ? retlen : pidlen ))
-
-  local p_shellpid=
-  local p_exitcode=
-  if [[ ${exitcode} -ne 0 ]]
+  if [[ -z ${unset_prompt_colors} ]]
   then
-    p_exitcode="\[$Red\]$( printf "%*s" "${widec1}" "${exitcode}" )\[$Color_Off\]"
-    p_shellpid="\[$IRed\]$( printf "%*s" "${widec1}" "${shellpid}" )\[$Color_Off\]"
-  else
-    p_exitcode="\[$White\]$( printf "%*s" "${widec1}" "${exitcode}" )\[$Color_Off\]"
-    p_shellpid="\[$White\]$( printf "%*s" "${widec1}" "${shellpid}" )\[$Color_Off\]"
+    local color_end=${NoColor}
+    local color_shell_pid=${IWhite}
+    local color_pid_error=${Red}
+    local color_exit_code=${IWhite}
+    local color_ret_error=${IRed}
+    local color_date_time=${IBlue}
+    local color_user_name=${Blue}
+    local color_user_addr=${Blue}
+    local color_host_name=${Blue}
+    local color_arch_type=${Cyan}
+    local color_cross_kit=${IGreen}
+    local color_curr_path=${ICyan}
+    local color_bevel_reg=${White}
+    local color_bevel_sup=${Red}
+    local color_separator=${IBlack}
   fi
 
-  local p_connstat=
-  local p_clientid=
-  local conlen=
+  local column_width=( 0 0 ) # 3rd-column uses all remaining space
+  local max_chars=$( cols )
+
+  # --
+  #  column 1: PID / exit-code
+  # --
+
+  local shell_pid=${$}
+  local exit_code=${__exit_code}
+
+  column_width[0]=$(( ${#shell_pid} > ${#exit_code} ? ${#shell_pid} : ${#exit_code} ))
+
+  if [[ ${exit_code} -ne 0 ]]
+  then
+    shell_pid=$( printf "${color_pid_error}%*s${color_end}" ${column_width[0]} "${shell_pid}" )
+    exit_code=$( printf "${color_ret_error}%*s${color_end}" ${column_width[0]} "${exit_code}" )
+  else
+    shell_pid=$( printf "${color_shell_pid}%*s${color_end}" ${column_width[0]} "${shell_pid}" )
+    exit_code=$( printf "${color_exit_code}%*s${color_end}" ${column_width[0]} "${exit_code}" )
+  fi
+
+  # --
+  #  column 2: date-time / user@host
+  # --
+
+  local date_time=$( date +"%d-%b-%Y %H:%M:%S" )
+  local host_name=$( hostname -s )
+  local user_name=${USER}
+  local user_host="${user_name}@${host_name}"
+
   if [[ -n ${SSH_CONNECTION} ]]
   then
-    p_clientid=( ${SSH_CONNECTION} )
-    p_connstat="$Blue${p_clientid[0]}$IBlue@$Color_Off"
-    conlen=$(( ${#p_clientid[0]} + 1 ))
-  else
-    p_clientid=()
-    p_connstat=""
-    conlen=0
+    local conn_stat=( ${SSH_CONNECTION} )
+    user_name="${conn_stat[0]}"
+    user_host="${user_name}@${host_name}"
   fi
 
-  local dtmlen=$( printf "${datetime}" | wc -c )
-  local hnmlen=$(( $( printf "${hostname}" | wc -c ) + ${conlen} ))
-  local widec2=$(( dtmlen > hnmlen ? dtmlen : hnmlen ))
+  column_width[1]=$(( ${#date_time} > ${#user_host} ? ${#date_time} : ${#user_host} ))
 
-  local p_hostname="${p_connstat}\[$Blue\]$( printf "%*s" $(( ${widec2} - ${conlen} )) "${hostname}" )\[$Color_Off\]"
-  local p_datetime="\[$IBlue\]$( printf "%*s" ${widec2} "${datetime}" )\[$Color_Off\]"
+  local user_size=$(( ${column_width[1]} - ${#host_name} - 1 ))
 
-  local p_platform=
+  date_time=$( printf "${color_date_time}%*s${color_end}" ${column_width[1]} "${date_time}" )
+  user_host=$( printf "${color_user_name}%*s${color_end}@${color_host_name}%*s${color_end}" ${user_size} "${user_name}" ${#host_name} "${host_name}" )
+
+  # --
+  #  column 3: platform / working-dir
+  # --
+
+  # the remaining columns use as much space as possible, so no need to keep
+  # track of their width and postpone adding the ANSI color seq bytes
+  local arch_type=
+  local curr_path="${color_curr_path}\w${color_end}" # expanded in PS1
+
   if [[ -n ${ENV_PREFIX} ]] && [[ "${LYNXOS_PREFIX}" == "${ENV_PREFIX}" ]]
   then
-    p_platform="\[$IYellow\]LynxOS-178 CDK\[$Color_Off\]"
+    arch_type="LynxOS-178 CDK"
   else
     test ${HOST_IS_OSX} \
-      && p_platform="\[$Cyan\]$(uname -sm)\[$Color_Off\]" \
-      || p_platform="\[$Cyan\]$(uname -om)\[$Color_Off\]"
+      && arch_type=$( uname -sm ) \
+      || arch_type=$( uname -om )
   fi
+  arch_type="${color_arch_type}${arch_type}${color_end}"
 
-  local p_prompter=
-  if [[ ${UID} -eq 0 ]]
-  then
-    p_prompter="\[$Red\]|\[$Color_Off\]"
-  else
-    p_prompter="|"
-  fi
+  [[ ${UID} -eq 0 ]] \
+    && local bezel="${color_bevel_sup}|${color_end}" \
+    || local bezel="${color_bevel_reg}|${color_end}"
+  local I="${color_separator}::${color_end}"
 
-  local ss="\[$BIBlack\]::\[$Color_Off\]"
-  local p_currpath="\[$ICyan\]\w\[$Color_Off\]"
-
-  local row=( 
-      "\n${p_prompter} ${p_shellpid} ${ss} ${p_datetime} ${ss} ${p_platform}"
-      "\n${p_prompter} ${p_exitcode} ${ss} ${p_hostname} ${ss} ${p_currpath}"
-      "\n${p_prompter} "
+  local PS1_row=(
+      "\n${bezel} ${shell_pid} $I ${date_time} $I ${arch_type}"
+      "\n${bezel} ${exit_code} $I ${user_host} $I ${curr_path}"
+      "\n${bezel} "
     )
 
-  local p_termwidth=$( cols )
-  local p_rowwide=0
-  for i in "${row[@]}"
-  do
-    len=$( uncolorseq "$i" | sed -e 's/^\\n//' | wc -c )
-    p_rowwide=$(( len > p_rowwide ? len : p_rowwide ))
-  done
-
-  if [[ ${p_rowwide} -gt ${p_termwidth} ]]
-  then
-    echo "too wide"
-  fi
-
-  PS1="$( arrjoin "" "${row[@]}" )"
+  PS1="$( arrjoin '' "${PS1_row[@]}" )"
+  #PS1="> "
 }
 
 export PROMPT_COMMAND=__prompt

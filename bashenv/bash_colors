@@ -1,3 +1,4 @@
+export __DOT_BASH_COLORS=1
 ################################################################################
 #
 #  file: ${HOME}/.bash_colors
@@ -16,7 +17,7 @@ uncolorseq()
 }
 
 # Reset
-Color_Off='\e[0m'       # Text Reset
+NoColor='\e[0m'       # Text Reset
 
 FGBlue='\033[38;5;33m'
 
@@ -90,75 +91,75 @@ On_IPurple='\e[10;95m'  # Purple
 On_ICyan='\e[0;106m'    # Cyan
 On_IWhite='\e[0;107m'   # White
 
-function show_colors
+show_colors()
 {
 # Regular Colors
-  printf "${Black} Black ${Color_Off}\n"
-  printf "${Red} Red ${Color_Off}\n"
-  printf "${Green} Green ${Color_Off}\n"
-  printf "${Yellow} Yellow ${Color_Off}\n"
-  printf "${Blue} Blue ${Color_Off}\n"
-  printf "${Purple} Purple ${Color_Off}\n"
-  printf "${Cyan} Cyan ${Color_Off}\n"
-  printf "${White} White ${Color_Off}\n"
+  printf "${Black} Black ${NoColor}\n"
+  printf "${Red} Red ${NoColor}\n"
+  printf "${Green} Green ${NoColor}\n"
+  printf "${Yellow} Yellow ${NoColor}\n"
+  printf "${Blue} Blue ${NoColor}\n"
+  printf "${Purple} Purple ${NoColor}\n"
+  printf "${Cyan} Cyan ${NoColor}\n"
+  printf "${White} White ${NoColor}\n"
 
 # Bold
-  printf "${BBlack} BBlack ${Color_Off}\n"
-  printf "${BRed} BRed ${Color_Off}\n"
-  printf "${BGreen} BGreen ${Color_Off}\n"
-  printf "${BYellow} BYellow ${Color_Off}\n"
-  printf "${BBlue} BBlue ${Color_Off}\n"
-  printf "${BPurple} BPurple ${Color_Off}\n"
-  printf "${BCyan} BCyan ${Color_Off}\n"
-  printf "${BWhite} BWhite ${Color_Off}\n"
+  printf "${BBlack} BBlack ${NoColor}\n"
+  printf "${BRed} BRed ${NoColor}\n"
+  printf "${BGreen} BGreen ${NoColor}\n"
+  printf "${BYellow} BYellow ${NoColor}\n"
+  printf "${BBlue} BBlue ${NoColor}\n"
+  printf "${BPurple} BPurple ${NoColor}\n"
+  printf "${BCyan} BCyan ${NoColor}\n"
+  printf "${BWhite} BWhite ${NoColor}\n"
 
 # Underline
-  printf "${UBlack} UBlack ${Color_Off}\n"
-  printf "${URed} URed ${Color_Off}\n"
-  printf "${UGreen} UGreen ${Color_Off}\n"
-  printf "${UYellow} UYellow ${Color_Off}\n"
-  printf "${UBlue} UBlue ${Color_Off}\n"
-  printf "${UPurple} UPurple ${Color_Off}\n"
-  printf "${UCyan} UCyan ${Color_Off}\n"
-  printf "${UWhite} UWhite ${Color_Off}\n"
+  printf "${UBlack} UBlack ${NoColor}\n"
+  printf "${URed} URed ${NoColor}\n"
+  printf "${UGreen} UGreen ${NoColor}\n"
+  printf "${UYellow} UYellow ${NoColor}\n"
+  printf "${UBlue} UBlue ${NoColor}\n"
+  printf "${UPurple} UPurple ${NoColor}\n"
+  printf "${UCyan} UCyan ${NoColor}\n"
+  printf "${UWhite} UWhite ${NoColor}\n"
 
 # Background
-  printf "${On_Black} On_Black ${Color_Off}\n"
-  printf "${On_Red} On_Red ${Color_Off}\n"
-  printf "${On_Green} On_Green ${Color_Off}\n"
-  printf "${On_Yellow} On_Yellow ${Color_Off}\n"
-  printf "${On_Blue} On_Blue ${Color_Off}\n"
-  printf "${On_Purple} On_Purple ${Color_Off}\n"
-  printf "${On_Cyan} On_Cyan ${Color_Off}\n"
-  printf "${On_White} On_White ${Color_Off}\n"
+  printf "${On_Black} On_Black ${NoColor}\n"
+  printf "${On_Red} On_Red ${NoColor}\n"
+  printf "${On_Green} On_Green ${NoColor}\n"
+  printf "${On_Yellow} On_Yellow ${NoColor}\n"
+  printf "${On_Blue} On_Blue ${NoColor}\n"
+  printf "${On_Purple} On_Purple ${NoColor}\n"
+  printf "${On_Cyan} On_Cyan ${NoColor}\n"
+  printf "${On_White} On_White ${NoColor}\n"
 
 # High Intensity
-  printf "${IBlack} IBlack ${Color_Off}\n"
-  printf "${IRed} IRed ${Color_Off}\n"
-  printf "${IGreen} IGreen ${Color_Off}\n"
-  printf "${IYellow} IYellow ${Color_Off}\n"
-  printf "${IBlue} IBlue ${Color_Off}\n"
-  printf "${IPurple} IPurple ${Color_Off}\n"
-  printf "${ICyan} ICyan ${Color_Off}\n"
-  printf "${IWhite} IWhite ${Color_Off}\n"
+  printf "${IBlack} IBlack ${NoColor}\n"
+  printf "${IRed} IRed ${NoColor}\n"
+  printf "${IGreen} IGreen ${NoColor}\n"
+  printf "${IYellow} IYellow ${NoColor}\n"
+  printf "${IBlue} IBlue ${NoColor}\n"
+  printf "${IPurple} IPurple ${NoColor}\n"
+  printf "${ICyan} ICyan ${NoColor}\n"
+  printf "${IWhite} IWhite ${NoColor}\n"
 
 # Bold High Intensity
-  printf "${BIBlack} BIBlack ${Color_Off}\n"
-  printf "${BIRed} BIRed ${Color_Off}\n"
-  printf "${BIGreen} BIGreen ${Color_Off}\n"
-  printf "${BIYellow} BIYellow ${Color_Off}\n"
-  printf "${BIBlue} BIBlue ${Color_Off}\n"
-  printf "${BIPurple} BIPurple ${Color_Off}\n"
-  printf "${BICyan} BICyan ${Color_Off}\n"
-  printf "${BIWhite} BIWhite ${Color_Off}\n"
+  printf "${BIBlack} BIBlack ${NoColor}\n"
+  printf "${BIRed} BIRed ${NoColor}\n"
+  printf "${BIGreen} BIGreen ${NoColor}\n"
+  printf "${BIYellow} BIYellow ${NoColor}\n"
+  printf "${BIBlue} BIBlue ${NoColor}\n"
+  printf "${BIPurple} BIPurple ${NoColor}\n"
+  printf "${BICyan} BICyan ${NoColor}\n"
+  printf "${BIWhite} BIWhite ${NoColor}\n"
 
 # High Intensity backgrounds
-  printf "${On_IBlack} On_IBlack ${Color_Off}\n"
-  printf "${On_IRed} On_IRed ${Color_Off}\n"
-  printf "${On_IGreen} On_IGreen ${Color_Off}\n"
-  printf "${On_IYellow} On_IYellow ${Color_Off}\n"
-  printf "${On_IBlue} On_IBlue ${Color_Off}\n"
-  printf "${On_IPurple} On_IPurple ${Color_Off}\n"
-  printf "${On_ICyan} On_ICyan ${Color_Off}\n"
-  printf "${On_IWhite} On_IWhite ${Color_Off}\n"
+  printf "${On_IBlack} On_IBlack ${NoColor}\n"
+  printf "${On_IRed} On_IRed ${NoColor}\n"
+  printf "${On_IGreen} On_IGreen ${NoColor}\n"
+  printf "${On_IYellow} On_IYellow ${NoColor}\n"
+  printf "${On_IBlue} On_IBlue ${NoColor}\n"
+  printf "${On_IPurple} On_IPurple ${NoColor}\n"
+  printf "${On_ICyan} On_ICyan ${NoColor}\n"
+  printf "${On_IWhite} On_IWhite ${NoColor}\n"
 }

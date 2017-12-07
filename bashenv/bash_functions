@@ -1,3 +1,4 @@
+export __DOT_BASH_FUNCTIONS=1
 ################################################################################
 #
 #  file: ${HOME}/.bash_functions
@@ -9,7 +10,6 @@
 #  desc: utility functions for system commands and bash sessions
 #
 ################################################################################
-
 
 escape()
 {
@@ -412,10 +412,16 @@ pathadd()
         : sub { unshift @p, @_ if @_; @p }
     }
 
-    my ($envvar, $pos, @path) = @ARGV;
+    my ($var, $pos, @path) = @ARGV;
 
-    my $newpath = quotemeta join ':', @path;
-    my $add = add($pos || '', grep { $_ !~ /(^|:)${newpath}($|:)/ } split /:/, $ENV{$envvar} || "");
+    $var  ||= '';
+    $pos  ||= '';
+    @path = grep { (length) } @path;
+
+    my $rgx_newpath = join '|', map { quotemeta } @path;
+
+    my $add = add($pos || '',
+      grep { $_ !~ /^(${rgx_newpath})$/ } split /:/, $ENV{$var} || '');
 
     print join ':', $add->(@path);
 PL
@@ -430,10 +436,15 @@ pathdel()
     use strict;
     use warnings;
 
-    my ($envvar, @path) = @ARGV;
+    my ($var, @path) = @ARGV;
 
-    my $newpath = quotemeta join ':', @path;
-    print join ':', grep { $_ !~ /(^|:)${newpath}($|:)/ } split /:/, $ENV{$envvar} || "";
+    $var  ||= '';
+    @path = grep { (length) } @path;
+
+    my $rgx_newpath = join '|', map { quotemeta } @path;
+
+    print join ':', 
+      grep { $_ !~ /^(${rgx_newpath})$/ } split /:/, $ENV{$var} || '';
 PL
 
   perl -e "${script}" $@

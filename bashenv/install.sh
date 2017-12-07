@@ -53,7 +53,7 @@ fi
 use_sudo=
 [[ "${user}" = "${USER}" ]] || use_sudo=1
 
-. bash_functions
+. "$( dirname "${0}" )/bash_functions"
 
 if ! silent id "${user}"
 then
@@ -61,7 +61,7 @@ then
   exit 1
 fi
 
-src_path=$( dirname "$( abspath "$0" )" )
+src_path=$( dirname "$( abspath "${0}" )" )
 dst_path=$( eval echo "~${user}" )
 
 echo "installing for user: ${user}"
