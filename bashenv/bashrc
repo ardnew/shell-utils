@@ -18,7 +18,7 @@ export __DOT_BASHRC=1
 #  session configuration
 # ------------------------------------------------------------------------------
 
-unset_prompt_colors=
+use_color_prompt=1
 
 # ------------------------------------------------------------------------------
 #  session-wide variables
@@ -73,7 +73,7 @@ __prompt()
   # snag this before it gets overwritten
   local __exit_code=$?
 
-  if [[ -z ${unset_prompt_colors} ]]
+  if [[ -n ${use_color_prompt} ]] && [[ ${use_color_prompt} -ne 0 ]]
   then
     local color_end=${NoColor}
     local color_shell_pid=${IWhite}
@@ -82,7 +82,8 @@ __prompt()
     local color_ret_error=${IRed}
     local color_date_time=${IBlue}
     local color_user_name=${Blue}
-    local color_user_addr=${Blue}
+    local color_user_root=${Red}
+    local color_user_addr=${IBlue}
     local color_host_name=${Blue}
     local color_arch_type=${Cyan}
     local color_cross_kit=${IGreen}
@@ -133,8 +134,10 @@ __prompt()
 
   local user_size=$(( ${column_width[1]} - ${#host_name} - 1 ))
 
+  [[ ${UID} -eq 0 ]] && color_user_name=${color_user_root}
+
   date_time=$( printf "${color_date_time}%*s${color_end}" ${column_width[1]} "${date_time}" )
-  user_host=$( printf "${color_user_name}%*s${color_end}@${color_host_name}%*s${color_end}" ${user_size} "${user_name}" ${#host_name} "${host_name}" )
+  user_host=$( printf "${color_user_name}%*s${color_end}${color_user_addr}@${color_host_name}%*s${color_end}" ${user_size} "${user_name}" ${#host_name} "${host_name}" )
 
   # --
   #  column 3: platform / working-dir
@@ -159,6 +162,7 @@ __prompt()
     && local bezel="${color_bevel_sup}|${color_end}" \
     || local bezel="${color_bevel_reg}|${color_end}"
   local I="${color_separator}::${color_end}"
+  local bezel="|"
 
   local PS1_row=(
       "\n${bezel} ${shell_pid} $I ${date_time} $I ${arch_type}"
@@ -167,7 +171,6 @@ __prompt()
     )
 
   PS1="$( arrjoin '' "${PS1_row[@]}" )"
-  #PS1="> "
 }
 
 export PROMPT_COMMAND=__prompt
