@@ -64,6 +64,7 @@ alias  perl-deparse='perl -MO=Deparse'
 
 alias      cpstruct='rsync -avhu --progress -f"+ */" -f"- *"'
 alias      syncdirs='rsync -avhu --progress'
+alias          rscp='rsync -rave ssh --progress'
 alias       finddos="grep -IUlr $'\r'"
 
 alias         bdiff='bcompare'
