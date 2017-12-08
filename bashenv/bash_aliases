@@ -25,7 +25,11 @@ export LSOPT_DETAIL_MOST="A$LSOPT_DETAIL_DEF" # same as -a but hides ".", ".."
 #  bash built-ins and standard tools
 # ------------------------------------------------------------------------------
 
-alias      resource='. ${HOME}/.bash_profile ; echo ". ${HOME}/.bash_profile"'
+# cygwin tries to cwd in /etc/profile unless CHERE_INVOKING
+test ${HOST_IS_CYGWIN}                                                         \
+  && alias _resource='CHERE_INVOKING=1 . "${HOME}/.bash_profile"'              \
+  || alias _resource='. "${HOME}/.bash_profile"'
+alias       resource='_resource; echo ". ${HOME}/.bash_profile"'
 
 test ${HOST_IS_OSX}                                                            \
   && alias       ls='ls -G'                                                    \
