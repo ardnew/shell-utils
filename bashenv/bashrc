@@ -35,7 +35,7 @@ export BASH_FUNCTIONS="${HOME}/.bash_functions"
 
 export PATH=$( pathadd "PATH" before "${HOME}/bin" "${HOME}/${USER}/bin" "/opt/local/bin" "/usr/local/bin" )
 export LD_LIBRARY_PATH=$( pathadd "LD_LIBRARY_PATH" before "${HOME}/lib" "${HOME}/${USER}/lib" )
-export PERL5LIB=$( pathadd "PERL5LIB" before "${HOME}/lib/perl" "${HOME}/.lib/perl" "${HOME}/Library/Perl/lib/perl5" "${HOME}/Library/Perl/lib/perl5/site_perl/5.24" )
+export PERL5LIB=$( pathadd "PERL5LIB" before "${HOME}/lib/perl" "${HOME}/${USER}/lib/perl" "${HOME}/Library/Perl/lib/perl5" "${HOME}/Library/Perl/lib/perl5/site_perl/5.24" )
 
 # make sure aliases get set -after- we've configured our bin/lib paths
 export BASH_ALIASES="${HOME}/.bash_aliases"
@@ -45,6 +45,28 @@ export BASH_COLORS="${HOME}/.bash_colors"
 [[ -f "${BASH_COLORS}" ]] && . "${BASH_COLORS}"
 
 export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
+
+# ------------------------------------------------------------------------------
+#  other init/rc files
+# ------------------------------------------------------------------------------
+
+rc_dir=( "${HOME}/.etc" "${HOME}/etc" )
+
+for dir in "${rc_dir[@]}"
+do
+  [[ -d "${dir}" ]] || continue
+  while read -re file
+  do
+    name=$( basename "${file}" )
+    
+    # source any regular files that match *rc
+    if [[ "${name}" = *"rc" ]] && [[ -f "${dir}/${name}" ]]
+    then
+      . "${dir}/${name}"
+    fi
+  done < <( ls -a1 "${dir}" )
+done
+
 
 # ------------------------------------------------------------------------------
 #  some other convenient constants
@@ -79,7 +101,7 @@ __prompt()
     local color_shell_pid=${IWhite}
     local color_pid_error=${Red}
     local color_exit_code=${IWhite}
-    local color_ret_error=${IRed}
+    local color_ret_error=${Red}
     local color_date_time=${IBlue}
     local color_user_name=${Blue}
     local color_user_root=${Red}
@@ -107,11 +129,12 @@ __prompt()
 
   if [[ ${exit_code} -ne 0 ]]
   then
-    shell_pid=$( printf "${color_pid_error}%*s${color_end}" ${column_width[0]} "${shell_pid}" )
-    exit_code=$( printf "${color_ret_error}%*s${color_end}" ${column_width[0]} "${exit_code}" )
+    shell_pid=$( printf "${color_pid_error} %*s ${color_end}" ${column_width[0]} "${shell_pid}" )
+    exit_code=$( printf "${color_ret_error} %*s ${color_end}" ${column_width[0]} "${exit_code}" )
+    color_separator=${color_ret_error}
   else
-    shell_pid=$( printf "${color_shell_pid}%*s${color_end}" ${column_width[0]} "${shell_pid}" )
-    exit_code=$( printf "${color_exit_code}%*s${color_end}" ${column_width[0]} "${exit_code}" )
+    shell_pid=$( printf "${color_shell_pid} %*s ${color_end}" ${column_width[0]} "${shell_pid}" )
+    exit_code=$( printf "${color_exit_code} %*s ${color_end}" ${column_width[0]} "${exit_code}" )
   fi
 
   # --
@@ -138,8 +161,8 @@ __prompt()
 
   [[ ${UID} -eq 0 ]] && color_user_name=${color_user_root}
 
-  date_time=$( printf "${color_date_time}%*s${color_end}" ${column_width[1]} "${date_time}" )
-  user_host=$( printf "${color_user_name}%*s${color_end}${color_user_addr}@${color_host_name}%*s${color_end}" ${user_size} "${user_name}" ${#host_name} "${host_name}" )
+  date_time=$( printf "${color_date_time} %*s ${color_end}" ${column_width[1]} "${date_time}" )
+  user_host=$( printf "${color_user_name} %*s${color_end}${color_user_addr}@${color_host_name}%*s ${color_end}" ${user_size} "${user_name}" ${#host_name} "${host_name}" )
 
   # --
   #  column 3: platform / working-dir
@@ -148,27 +171,30 @@ __prompt()
   # the remaining columns use as much space as possible, so no need to keep
   # track of their width and postpone adding the ANSI color seq bytes
   local arch_type=
-  local curr_path="${color_curr_path}\w${color_end}" # expanded in PS1
+  local curr_path="${color_curr_path} \w ${color_end}" # expanded in PS1
 
   if [[ -n ${ENV_PREFIX} ]] && [[ "${LYNXOS_PREFIX}" == "${ENV_PREFIX}" ]]
   then
     arch_type="LynxOS-178 CDK"
+    color_arch_type="${color_cross_kit}"
   else
     test ${HOST_IS_OSX} \
       && arch_type=$( uname -sm ) \
       || arch_type=$( uname -om )
   fi
-  arch_type="${color_arch_type}${arch_type}${color_end}"
+  arch_type="${color_arch_type} ${arch_type} ${color_end}"
 
   [[ ${UID} -eq 0 ]] \
     && local bezel="${color_bevel_sup}|${color_end}" \
     || local bezel="${color_bevel_reg}|${color_end}"
   local I="${color_separator}::${color_end}"
+
+  # colored bezel causing weird behaviors when scrolling command history
   local bezel="|"
 
   local PS1_row=(
-      "\n${bezel} ${shell_pid} $I ${date_time} $I ${arch_type}"
-      "\n${bezel} ${exit_code} $I ${user_host} $I ${curr_path}"
+      "\n${bezel}${shell_pid}$I${date_time}$I${arch_type}"
+      "\n${bezel}${exit_code}$I${user_host}$I${curr_path}"
       "\n${bezel} "
     )
 
