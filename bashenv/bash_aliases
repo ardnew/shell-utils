@@ -101,6 +101,7 @@ then
   alias restart.finder='killall -KILL Finder'
   alias         simctl='xcrun simctl'
   alias       updatedb='/usr/libexec/locate.updatedb'
+  alias       git.diff='git difftool'
 fi
 
 # ------------------------------------------------------------------------------
@@ -108,6 +109,7 @@ fi
 # ------------------------------------------------------------------------------
 
 alias   irssi.lt="ssh -tC lt 'screen -list && screen -Udr || screen -U irssi'"
+alias    ip.home='ip=( $( curl -s https://loveturtle.net/~ardnew/home.ip ) ); echo "${ip}"'
 
 # ------------------------------------------------------------------------------
 #  access to some of the ardnew::* perlmods
