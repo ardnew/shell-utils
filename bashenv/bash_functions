@@ -88,6 +88,16 @@ streqi()
   ignorecase streq "$@"
 }
 
+fout()
+{
+  [[ $# -gt 0 ]] && "$@" 2>&1
+}
+
+ferr()
+{
+  [[ $# -gt 0 ]] && "$@" 1>&2
+}
+
 silent()
 {
   [[ $# -gt 0 ]] && "$@" &> /dev/null
