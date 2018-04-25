@@ -650,6 +650,16 @@ chmod-tree-rw()
   done
 }
 
+rgb2hex()
+{
+  perl -le 'printf"0x%02X%02X%02X$/",map{int($_*255+0.5)}@ARGV' $@
+}
+
+hex2rgb()
+{
+  perl -le '@_=map{oct("0x$_")/0xFF}(shift=~/../g);print"@_[@_-3..$#_]"' $@
+}
+
 eval-loop()
 {
   if [[ ${#} -gt 1 ]]
@@ -747,6 +757,44 @@ chrome-tunnel()
   else
     echo "error: cannot locate forked SSH tunnel process"
   fi
+}
+
+open()
+{
+  local path=${PWD}
+
+  if [[ ${#} -gt 0 ]]
+  then
+    path=${1}
+  fi
+
+  if test ${HOST_IS_MACOS}
+  then
+    command open "${path}" # use OS X builtin
+  else
+    if [[ -e "${path}" ]]
+    then
+      path=$( cygpath --windows --absolute --long-name "${path}" )
+      explorer.exe "${path}"
+    else
+      echo "error: no such file or directory: ${path}"
+      return 1
+    fi
+  fi
+}
+
+unixpath()
+{
+  path=$1
+  [[ -z ${path} ]] && path="."
+  cygpath --unix --absolute "${path}"
+}
+
+winpath()
+{
+  path=$1
+  [[ -z ${path} ]] && path="."
+  cygpath --windows --absolute --long-name "${path}"
 }
 
 windows-special-folder()

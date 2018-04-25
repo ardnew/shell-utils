@@ -24,7 +24,7 @@ use_color_prompt=1
 #  session-wide variables
 # ------------------------------------------------------------------------------
 
-[[ ${OSTYPE} = *darwin* ]] && export HOST_IS_OSX=1
+[[ ${OSTYPE} = *darwin* ]] && export HOST_IS_MACOS=1
 [[ ${OSTYPE} = *cygwin* ]] && export HOST_IS_CYGWIN=1
 
 export PARENT_PROFILE="/etc/profile"
@@ -33,11 +33,11 @@ export PARENT_PROFILE="/etc/profile"
 export BASH_FUNCTIONS="${HOME}/.bash_functions"
 [[ -f "${BASH_FUNCTIONS}" ]] && . "${BASH_FUNCTIONS}"
 
-export PATH=$( pathadd "PATH" before "${HOME}/bin" "${HOME}/${USER}/bin" "/opt/local/bin" "/usr/local/bin" )
+export PATH=$( pathadd "PATH" before "." "${HOME}/bin" "${HOME}/${USER}/bin" "${HOME}/andrew/src/perl" "/opt/local/bin" "/usr/local/bin" )
 export LD_LIBRARY_PATH=$( pathadd "LD_LIBRARY_PATH" before "${HOME}/lib" "${HOME}/${USER}/lib" )
-export PERL5LIB=$( pathadd "PERL5LIB" before "${HOME}/lib/perl" "${HOME}/${USER}/lib/perl" "${HOME}/Library/Perl/lib/perl5" "${HOME}/Library/Perl/lib/perl5/site_perl/5.24" )
+export PERL5LIB=$( pathadd "PERL5LIB" before "${HOME}/andrew/src/perl" "${HOME}/lib/perl" "${HOME}/${USER}/lib/perl" "${HOME}/Library/Perl/lib/perl5" "${HOME}/Library/Perl/lib/perl5/site_perl/5.24" )
 
-# make sure aliases get set -after- we've configured our bin/lib paths
+# make sure aliases get set -after- we've configured functions and bin/lib paths
 export BASH_ALIASES="${HOME}/.bash_aliases"
 [[ -f "${BASH_ALIASES}" ]] && . "${BASH_ALIASES}"
 
@@ -178,7 +178,7 @@ __prompt()
     arch_type="LynxOS-178 CDK"
     color_arch_type="${color_cross_kit}"
   else
-    test ${HOST_IS_OSX} \
+    test ${HOST_IS_MACOS} \
       && arch_type=$( uname -sm ) \
       || arch_type=$( uname -om )
   fi

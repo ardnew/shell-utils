@@ -15,7 +15,7 @@ export __DOT_BASH_ALIASES=1
 #  supportive environment variables
 # ------------------------------------------------------------------------------
 
-test ${HOST_IS_OSX}                                                            \
+test ${HOST_IS_MACOS}                                                          \
   && export LSOPT_DETAIL_DEF="lsh"                                             \
   || export LSOPT_DETAIL_DEF="lsh --group-directories-first"
 export LSOPT_DETAIL_ALL="a$LSOPT_DETAIL_DEF"
@@ -31,14 +31,14 @@ test ${HOST_IS_CYGWIN}                                                         \
   || alias _resource='. "${HOME}/.bash_profile"'
 alias       resource='_resource; echo ". ${HOME}/.bash_profile"'
 
-test ${HOST_IS_OSX}                                                            \
+test ${HOST_IS_MACOS}                                                          \
   && alias       ls='ls -G'                                                    \
   || alias       ls='ls --color=auto'
 alias             l='ls -CF'
 alias            ll="l -$LSOPT_DETAIL_DEF"
 alias            la="l -$LSOPT_DETAIL_MOST"
 alias           lla="l -$LSOPT_DETAIL_ALL"
-test ${HOST_IS_OSX}                                                            \
+test ${HOST_IS_MACOS}                                                          \
   && alias      llC='CLICOLOR_FORCE=1 ll'                                      \
   || alias      llC='ll --color=always'
 alias         bytes='xxd -c1'
@@ -76,6 +76,7 @@ alias           sdc='systemctl'
 alias           sci='svn commit'
 alias           srm='svn rm'
 alias           sup='svn update'
+alias          surl='svn info | command grep -oP "^(URL|Revision):\s*\K.*" | tr "\n" "@" | sed -E "s/@+$/\n/"'
 
 # ------------------------------------------------------------------------------
 #  Cygwin stuff
@@ -84,17 +85,20 @@ alias           sup='svn update'
 if test ${HOST_IS_CYGWIN}
 then
   alias      runcmd='cmd /c'
-  alias    unixpath='cygpath.exe --unix --absolute'
-  alias     winpath='cygpath.exe --windows --absolute --long-name'
+  silent type -t unixpath || \
+    alias  unixpath='cygpath.exe --unix --absolute'
+  silent type -t winpath || \
+    alias   winpath='cygpath.exe --windows --absolute --long-name'
   alias     nixpath='unixpath'
   alias updatedbwin='updatedb --prunefs="smbfs SMBFS vfat VFAT fat32 FAT32 nfs NFS proc" --prunepaths="/tmp /var/tmp /usr/tmp /mnt /media /proc /cygdrive/e /cygdrive/f /cygdrive/t /cygdrive/v /cygdrive/w /cygdrive/x /cygdrive/y"'
+  alias svnstatcalc='svn stat|grep -v "^\?|\.(dat|ind)$"'
 fi
 
 # ------------------------------------------------------------------------------
 #  OS X stuff
 # ------------------------------------------------------------------------------
 
-if test ${HOST_IS_OSX}
+if test ${HOST_IS_MACOS}
 then
   alias   restart.dock='killall -KILL Dock'
   alias   restart.menu='killall -KILL SystemUIServer'
@@ -102,6 +106,8 @@ then
   alias         simctl='xcrun simctl'
   alias       updatedb='/usr/libexec/locate.updatedb'
   alias       git.diff='git difftool'
+  alias  hotspot.start='sudo launchctl start com.apple.NetworkSharing'
+  alias   hotspot.stop='sudo launchctl stop com.apple.NetworkSharing'
 fi
 
 # ------------------------------------------------------------------------------
