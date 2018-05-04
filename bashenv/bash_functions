@@ -770,7 +770,7 @@ open()
 
   if test ${HOST_IS_MACOS}
   then
-    command open "${path}" # use OS X builtin
+    command open ${@} # use OS X builtin
   else
     if [[ -e "${path}" ]]
     then
