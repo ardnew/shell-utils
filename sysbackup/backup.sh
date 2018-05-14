@@ -9,6 +9,7 @@ include=/backup/include.files
 exclude=/backup/exclude.files
 lastbup=/backup/backup.log
 lockbup=/backup/.backup.lock
+rotates=/backup/rotate.sh
 
 # comment out to actually perform backup
 #rsyncdryrun=--dry-run
@@ -33,7 +34,7 @@ function logline
     file=$1
     if [[ -f "${file}" ]]
     then
-      echo "file=${file};md5="$( md5sum "${file}" | \grep -oP '^\S+' )";"
+      echo "[backup]file=${file};md5="$( md5sum "${file}" | \grep -oP '^\S+' )";"
     fi
   fi
 }
@@ -71,7 +72,8 @@ then
   # configure filenames
   # ---------------------------------------------------------------------------
 
-  datetime=$( date "+%Y-%m-%d__%H-%M-%S" )
+  realdate=$( date ) # use standard formatting with rotation script
+  datetime=$( date "+%Y-%m-%d__%H-%M-%S" -d "${realdate}" )
   oskernel=$( printf "%s (%s)" \
               "$( lsb_release -d | \grep -oP '(?<=^Description:\t).+$' )" \
               "$( uname -r )" \
@@ -90,6 +92,23 @@ then
   else
     rsyncprogress=-v
   fi
+
+  # ---------------------------------------------------------------------------
+  # rotate the old backup files
+  # ---------------------------------------------------------------------------
+
+  rotatetime=$( date "+%s" )
+  echo "===================================================================="
+  echo " [+] rotating backup files ..."
+  echo
+
+  "${rotates}" "${target}" "${realdate}"
+
+  rotateduration=$(( $( date "+%s" ) - ${rotatetime} ))
+  echo
+  echo " [+] done ($( readablesec ${rotateduration} ))"
+  echo "===================================================================="
+  echo
 
   # ---------------------------------------------------------------------------
   # perform the backup
@@ -151,7 +170,6 @@ then
   # remove the backup lock file
   rm -f "${lockbup}"
 
-
   echo "===================================================================="
   echo " [+] backup completed in $( readablesec $(( ${rsyncduration} + ${tarballduration} )) )"
   echo " [+] current mirror:   ${targetpath}/"
@@ -168,3 +186,4 @@ USAGE
   exit 255
 
 fi
+
