@@ -1,0 +1,160 @@
+-- vim: ts=4 sw=4 noet ai cindent syntax=lua
+--[[
+Conky, a system monitor, based on torsmo
+
+Any original torsmo code is licensed under the BSD license
+
+All code written since the fork of torsmo is licensed under the GPL
+
+Please see COPYING for details
+
+Copyright (c) 2004, Hannu Saransaari and Lauri Hakkarainen
+Copyright (c) 2005-2012 Brenden Matthews, Philip Kovacs, et. al. (see AUTHORS)
+All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+]]
+
+conky.config =
+{
+    -- ----------------------------------------------------
+    --  performance configuration
+    -- ----------------------------------------------------
+
+    background = true,
+
+    own_window = true,
+    own_window_class = 'Conky',
+    own_window_type = 'desktop',
+    own_window_argb_visual = true,
+    own_window_hints = undecorated,below,sticky,skip_taskbar,skip_pager,
+
+    double_buffer = true,
+    update_interval = 1.0,
+    cpu_avg_samples = 2,
+    net_avg_samples = 2,
+    no_buffers = true,
+
+    out_to_console = false,
+    out_to_stderr = false,
+    extra_newline = false,
+
+    -- ----------------------------------------------------
+    --  appearance configuration
+    -- ----------------------------------------------------
+
+    alignment = 'top_right',
+
+    own_window_transparent = true,
+
+    stippled_borders = 0,
+    border_width = 1,
+    draw_borders = false,
+    draw_graph_borders = true,
+    draw_outline = false,
+    draw_shades = false,
+
+    use_xft = true,
+    font = 'Ubuntu Mono:size=10',
+    format_human_readable = true,
+
+    minimum_width = 320,
+    minimum_height = 10,
+    maximum_width = 320,
+
+    gap_x = 5,
+    gap_y = 5,
+
+    uppercase = false,
+    use_spacer = 'right',
+    show_graph_scale = false,
+    show_graph_range = false,
+
+    -- ----------------------------------------------------
+    --  colors
+    -- ----------------------------------------------------
+
+    default_color = 'white',
+    default_outline_color = 'white',
+    default_shade_color = 'white',
+
+    -- must use color{0..9}, conky restriction
+    color0 = 'grey', -- title color
+    color1 = 'white', -- data color
+    color2 = '98D443', -- name color
+    color3 = 'blue', -- graph gradient low
+    color4 = 'red', -- graph gradient high
+}
+
+conky.text =
+[[
+${alignc}${color2}${texeci 3600 whoami}@$nodename${color1} - $sysname $kernel
+${color0}$hr
+${color0}Uptime: ${color1}$uptime
+${color0}Frequency (GHz): ${color1}$freq_g
+${goto 10}${color0} CPU1: ${color1}${cpu cpu1}%${goto 78}${cpubar cpu1 4,83}${goto 171}${color0} CPU9: ${color1}${cpu cpu9}%${goto 239}${cpubar cpu9 4,83}
+${goto 10}${color0} CPU2: ${color1}${cpu cpu2}%${goto 78}${cpubar cpu2 4,83}${goto 171}${color0}CPU10: ${color1}${cpu cpu10}%${goto 239}${cpubar cpu10 4,83}
+${goto 10}${color0} CPU3: ${color1}${cpu cpu3}%${goto 78}${cpubar cpu3 4,83}${goto 171}${color0}CPU11: ${color1}${cpu cpu11}%${goto 239}${cpubar cpu11 4,83}
+${goto 10}${color0} CPU4: ${color1}${cpu cpu4}%${goto 78}${cpubar cpu4 4,83}${goto 171}${color0}CPU12: ${color1}${cpu cpu12}%${goto 239}${cpubar cpu12 4,83}
+${goto 10}${color0} CPU5: ${color1}${cpu cpu5}%${goto 78}${cpubar cpu5 4,83}${goto 171}${color0}CPU13: ${color1}${cpu cpu13}%${goto 239}${cpubar cpu13 4,83}
+${goto 10}${color0} CPU6: ${color1}${cpu cpu6}%${goto 78}${cpubar cpu6 4,83}${goto 171}${color0}CPU14: ${color1}${cpu cpu14}%${goto 239}${cpubar cpu14 4,83}
+${goto 10}${color0} CPU7: ${color1}${cpu cpu7}%${goto 78}${cpubar cpu7 4,83}${goto 171}${color0}CPU15: ${color1}${cpu cpu15}%${goto 239}${cpubar cpu15 4,83}
+${goto 10}${color0} CPU8: ${color1}${cpu cpu8}%${goto 78}${cpubar cpu8 4,83}${goto 171}${color0}CPU16: ${color1}${cpu cpu16}%${goto 239}${cpubar cpu16 4,83}
+${cpugraph cpu0 18 ${color3} ${color4}}
+${voffset -10}$hr
+${goto 10}${color0} RAM: ${color1}$mem/$memmax - $memperc%${goto 203}${membar 6}
+${goto 10}${color0}Swap: ${color1}$swap/$swapmax - $swapperc%${goto 203}${swapbar 6}
+${memgraph 18 ${color3} ${color4}}
+${color0}$hr
+${color0}Processes: ${color1}$processes  ${color0}Running: ${color1}$running_processes ${color0}(Thr: ${color1}$running_threads${color0})
+${color0}Top CPU           PID   USER  CPU%   MEM%
+${goto 10}${color2}${top name 1}${goto 132}${color1}${top pid 1}${goto 175}${top user 1}${goto 202}${top cpu 1}${goto 250}${top mem 1}
+${goto 10}${color2}${top name 2}${goto 132}${color1}${top pid 2}${goto 175}${top user 2}${goto 202}${top cpu 2}${goto 250}${top mem 2}
+${goto 10}${color2}${top name 3}${goto 132}${color1}${top pid 3}${goto 175}${top user 3}${goto 202}${top cpu 3}${goto 250}${top mem 3}
+${goto 10}${color2}${top name 4}${goto 132}${color1}${top pid 4}${goto 175}${top user 4}${goto 202}${top cpu 4}${goto 250}${top mem 4}
+${color0}Top RAM           PID   USER  MEM%   RES
+${goto 10}${color2}${top_mem name 1}${goto 132}${color1}${top_mem pid 1}${goto 175}${top_mem user 1}${goto 202}${top_mem mem 1}${goto 258}${top_mem mem_res 1}
+${goto 10}${color2}${top_mem name 2}${goto 132}${color1}${top_mem pid 2}${goto 175}${top_mem user 2}${goto 202}${top_mem mem 2}${goto 258}${top_mem mem_res 2}
+${goto 10}${color2}${top_mem name 3}${goto 132}${color1}${top_mem pid 3}${goto 175}${top_mem user 3}${goto 202}${top_mem mem 3}${goto 258}${top_mem mem_res 3}
+${goto 10}${color2}${top_mem name 4}${goto 132}${color1}${top_mem pid 4}${goto 175}${top_mem user 4}${goto 202}${top_mem mem 4}${goto 258}${top_mem mem_res 4}
+${color0}$hr
+${color0}File systems:
+${goto 10}${color2}/        ${color1}${fs_used /}/${fs_size /} ${fs_bar 6 /}
+${diskiograph /dev/sdb 18 ${color3} ${color4} 750}
+${goto 10}${color2}/mirror  ${color1}${fs_used /mirror}/${fs_size /mirror} ${fs_bar 6 /mirror}
+${diskiograph /dev/sda 18 ${color3} ${color4} 750}
+${goto 10}${color2}/backup  ${color1}${fs_used /backup}/${fs_size /backup} ${fs_bar 6 /backup}
+${diskiograph /dev/sdc 18 ${color3} ${color4} 750}
+${color0}Last backup: ${color1}${texeci 3600 stat -c "%y" $(tail -n 1 /backup/backup.log | \grep -oP 'file=\K[^;]+') | sed -E 's/\..+$//' }
+${goto 10}${color2}${texeci 3600 tail -n 1 /backup/backup.log | \grep -oP 'md5=\K[^;]+' }
+${color0}$hr
+${color0}Networking:
+${goto 10}${color0}${color2}DTT ${color0}down: ${color1}${upspeed eth0}${goto 175}${color0}${color2}DTT ${color0}up: ${color1}${downspeed eth0}
+${color0}${downspeedgraph eth0 18,155 ${color3} ${color4}} $alignr${color0}${upspeedgraph eth0 18,155 ${color3} ${color4}}
+${goto 10}${color0}${color2}APS ${color0}down: ${color1}${upspeed eth1}${goto 175}${color0}${color2}APS ${color0}up: ${color1}${downspeed eth1}
+${color0}${downspeedgraph eth1 18,155 ${color3} ${color4}} $alignr${color0}${upspeedgraph eth1 18,155 ${color3} ${color4}}
+${goto 10}${color0}${color2}VPN ${color0}down: ${color1}${upspeed eth2}${goto 175}${color0}${color2}VPN ${color0}up: ${color1}${downspeed eth2}
+${color0}${downspeedgraph eth2 18,155 ${color3} ${color4}} $alignr${color0}${upspeedgraph eth2 18,155 ${color3} ${color4}}
+${color0}Outbound Connection ${alignr} Remote Service/Port${color1}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 0}${alignr}${color1}${tcp_portmon 32768 61000 rservice 0}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 1}${alignr}${color1}${tcp_portmon 32768 61000 rservice 1}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 2}${alignr}${color1}${tcp_portmon 32768 61000 rservice 2}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 3}${alignr}${color1}${tcp_portmon 32768 61000 rservice 3}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 4}${alignr}${color1}${tcp_portmon 32768 61000 rservice 4}
+${color0}Inbound Connection ${alignr} Local Service/Port${color1}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 0}${alignr}${color1}${tcp_portmon 1 32767 lservice 0}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 1}${alignr}${color1}${tcp_portmon 1 32767 lservice 1}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 2}${alignr}${color1}${tcp_portmon 1 32767 lservice 2}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 3}${alignr}${color1}${tcp_portmon 1 32767 lservice 3}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 4}${alignr}${color1}${tcp_portmon 1 32767 lservice 4}
+]]
