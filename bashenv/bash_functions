@@ -265,12 +265,19 @@ tree()
 {
   if type -P tree > /dev/null
   then
-    command tree "$@"
+    command tree -AC "$@"
   else
     local path="."
     [[ -n ${1} ]] && path="${1}"
     find "${path}" | sed -e 's;[^/]*/;|____;g' -e 's;____|;  |;g'
   fi
+}
+
+lstree()
+{
+  opts=
+  if type -P tree > /dev/null; then opts="-pughDFAC"; fi
+  tree "${opts}" "$@"
 }
 
 now_long()

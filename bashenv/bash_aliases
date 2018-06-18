@@ -73,6 +73,8 @@ alias         sdiff='sdiff -w$(tput cols)'
 alias     systemctl='systemctl --no-pager'
 alias           sdc='systemctl'
 
+alias    apt-search='apt-cache search --names-only'
+
 alias           sci='svn commit'
 alias           srm='svn rm'
 alias           sup='svn update'
