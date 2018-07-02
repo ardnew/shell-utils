@@ -48,6 +48,9 @@ export BASH_COLORS="${HOME}/.bash_colors"
 
 export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
 
+# shell-completion for the go runtime
+complete -C "${GOPATH}/bin/gocomplete" go
+
 # ------------------------------------------------------------------------------
 #  other init/rc files
 # ------------------------------------------------------------------------------
@@ -68,7 +71,6 @@ do
     fi
   done < <( ls -a1 "${dir}" )
 done
-
 
 # ------------------------------------------------------------------------------
 #  some other convenient constants
