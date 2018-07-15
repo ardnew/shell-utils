@@ -1,0 +1,1 @@
+add-auto-load-safe-path /usr/share/go-1.10/src/runtime/runtime-gdb.py
