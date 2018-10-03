@@ -790,6 +790,16 @@ open()
   fi
 }
 
+updatedb-osx()
+{
+  if test ${HOST_IS_MACOS}
+  then
+    pushd /
+    sudo -Ei /usr/libexec/locate.updatedb
+    popd
+  fi
+}
+
 unixpath()
 {
   path=$1

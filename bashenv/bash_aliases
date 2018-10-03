@@ -106,7 +106,6 @@ then
   alias   restart.menu='killall -KILL SystemUIServer'
   alias restart.finder='killall -KILL Finder'
   alias         simctl='xcrun simctl'
-  alias       updatedb='/usr/libexec/locate.updatedb'
   alias       git.diff='git difftool'
   alias  hotspot.start='sudo launchctl start com.apple.NetworkSharing'
   alias   hotspot.stop='sudo launchctl stop com.apple.NetworkSharing'

@@ -48,7 +48,13 @@ export BASH_COLORS="${HOME}/.bash_colors"
 
 export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
 
-# shell-completion for the go runtime
+# shell auto-completion
+if test ${HOST_IS_MACOS}
+then
+  MACPORTS_ROOT=/opt/local
+  AUTOCOMPLETE=/etc/profile.d/bash_completion.sh
+  [[ -f "${MACPORTS_ROOT}${AUTOCOMPLETE}" ]] && . "${MACPORTS_ROOT}${AUTOCOMPLETE}"
+fi
 complete -C "${GOPATH}/bin/gocomplete" go
 
 # ------------------------------------------------------------------------------
