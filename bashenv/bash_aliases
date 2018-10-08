@@ -15,7 +15,7 @@ export __DOT_BASH_ALIASES=1
 #  supportive environment variables
 # ------------------------------------------------------------------------------
 
-test ${HOST_IS_MACOS}                                                          \
+test ${HOST_IS_MACOS} && test ! $USE_GNU_COREUTILS                             \
   && export LSOPT_DETAIL_DEF="lsh"                                             \
   || export LSOPT_DETAIL_DEF="lsh --group-directories-first"
 export LSOPT_DETAIL_ALL="a$LSOPT_DETAIL_DEF"
@@ -31,14 +31,14 @@ test ${HOST_IS_CYGWIN}                                                         \
   || alias _resource='. "${HOME}/.bash_profile"'
 alias       resource='_resource; echo ". ${HOME}/.bash_profile"'
 
-test ${HOST_IS_MACOS}                                                          \
+test ${HOST_IS_MACOS} && test ! $USE_GNU_COREUTILS                             \
   && alias       ls='ls -G'                                                    \
   || alias       ls='ls --color=auto'
 alias             l='ls -CF'
 alias            ll="l -$LSOPT_DETAIL_DEF"
 alias            la="l -$LSOPT_DETAIL_MOST"
 alias           lla="l -$LSOPT_DETAIL_ALL"
-test ${HOST_IS_MACOS}                                                          \
+test ${HOST_IS_MACOS} && test ! $USE_GNU_COREUTILS                             \
   && alias      llC='CLICOLOR_FORCE=1 ll'                                      \
   || alias      llC='ll --color=always'
 alias         bytes='xxd -c1'

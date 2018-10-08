@@ -766,6 +766,8 @@ chrome-tunnel()
   fi
 }
 
+if ! test ${HOST_IS_MACOS}
+then
 open()
 {
   local path=${PWD}
@@ -775,20 +777,16 @@ open()
     path=${1}
   fi
 
-  if test ${HOST_IS_MACOS}
+  if [[ -e "${path}" ]]
   then
-    command open ${@} # use OS X builtin
+    path=$( cygpath --windows --absolute --long-name "${path}" )
+    explorer.exe "${path}"
   else
-    if [[ -e "${path}" ]]
-    then
-      path=$( cygpath --windows --absolute --long-name "${path}" )
-      explorer.exe "${path}"
-    else
-      echo "error: no such file or directory: ${path}"
-      return 1
-    fi
+    echo "error: no such file or directory: ${path}"
+    return 1
   fi
 }
+fi
 
 updatedb-osx()
 {

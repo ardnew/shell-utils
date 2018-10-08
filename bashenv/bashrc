@@ -27,6 +27,18 @@ use_color_prompt=1
 [[ ${OSTYPE} = *darwin* ]] && export HOST_IS_MACOS=1
 [[ ${OSTYPE} = *cygwin* ]] && export HOST_IS_CYGWIN=1
 
+export USE_GNU_COREUTILS=1
+
+if test ${HOST_IS_MACOS}
+then
+  MACPORTS_ROOT=/opt/local
+  MACPORTS_GNUBIN="${MACPORTS_ROOT}/libexec/gnubin"
+  if ! [[ -d "${MACPORTS_GNUBIN}" ]]
+  then
+    unset -v MACPORTS_GNUBIN USE_GNU_COREUTILS
+  fi 
+fi
+
 export PARENT_PROFILE="/etc/profile"
 [[ -f "${PARENT_PROFILE}" ]] && . "${PARENT_PROFILE}" # first and foremost
 
@@ -36,7 +48,7 @@ export BASH_FUNCTIONS="${HOME}/.bash_functions"
 export GOPATH="${HOME}/Development/go"
 export PERL5LIB=$( pathadd "PERL5LIB" before "${HOME}/andrew/src/perl" "${HOME}/lib/perl" "${HOME}/.lib/perl" "${HOME}/${USER}/lib/perl" "${HOME}/Library/Perl/lib/perl5" "${HOME}/Library/Perl/lib/perl5/site_perl/5.24" )
 
-export PATH=$( pathadd "PATH" before "." "${HOME}/bin" "${HOME}/.bin" "${HOME}/${USER}/bin" "${HOME}/andrew/src/perl" "/opt/local/bin" "/usr/local/bin" "${GOPATH}/bin" "${GOROOT}/bin" )
+export PATH=$( pathadd "PATH" before "." "${HOME}/bin" "${HOME}/.bin" "${HOME}/${USER}/bin" "${HOME}/andrew/src/perl" "${MACPORTS_GNUBIN}" "/opt/local/bin" "/usr/local/bin" "${GOPATH}/bin" "${GOROOT}/bin" )
 export LD_LIBRARY_PATH=$( pathadd "LD_LIBRARY_PATH" before "${HOME}/lib" "${HOME}/.lib" "${HOME}/${USER}/lib" )
 
 # make sure aliases get set -after- we've configured functions and bin/lib paths
@@ -48,13 +60,13 @@ export BASH_COLORS="${HOME}/.bash_colors"
 
 export HISTCONTROL=$HISTCONTROL${HISTCONTROL+,}ignoredups
 
-# shell auto-completion
+# shell auto-completion rules
 if test ${HOST_IS_MACOS}
 then
-  MACPORTS_ROOT=/opt/local
   AUTOCOMPLETE=/etc/profile.d/bash_completion.sh
   [[ -f "${MACPORTS_ROOT}${AUTOCOMPLETE}" ]] && . "${MACPORTS_ROOT}${AUTOCOMPLETE}"
 fi
+complete -W "\`grep -oE '^[a-zA-Z0-9_.-]+:([^=]|$)' Makefile | sed 's/[^a-zA-Z0-9_.-]*$//'\`" make
 complete -C "${GOPATH}/bin/gocomplete" go
 
 # ------------------------------------------------------------------------------
@@ -188,7 +200,7 @@ __prompt()
     arch_type="LynxOS-178 CDK"
     color_arch_type="${color_cross_kit}"
   else
-    test ${HOST_IS_MACOS} \
+    test ${HOST_IS_MACOS} && test ! $USE_GNU_COREUTILS \
       && arch_type=$( uname -sm ) \
       || arch_type=$( uname -om )
   fi
