@@ -66,7 +66,7 @@ then
   AUTOCOMPLETE=/etc/profile.d/bash_completion.sh
   [[ -f "${MACPORTS_ROOT}${AUTOCOMPLETE}" ]] && . "${MACPORTS_ROOT}${AUTOCOMPLETE}"
 fi
-complete -W "\`grep -oE '^[a-zA-Z0-9_.-]+:([^=]|$)' Makefile | sed 's/[^a-zA-Z0-9_.-]*$//'\`" make
+complete -W "\`[[ -f Makefile ]] && command grep -oE '^[a-zA-Z0-9_.-]+:([^=]|$)' Makefile | sed 's/[^a-zA-Z0-9_.-]*$//'\`" make
 complete -C "${GOPATH}/bin/gocomplete" go
 
 # ------------------------------------------------------------------------------
