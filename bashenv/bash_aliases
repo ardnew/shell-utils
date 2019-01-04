@@ -54,7 +54,6 @@ alias          less='less -r'
 [[ $( grep --version 2>&1 | \grep -ci gnu ) -eq 0 ]]                           \
   && alias    cgrep='grep --color=always -E'                                   \
   || alias    cgrep='grep --color=always -P' # PCRE by default
-alias         egrep='grep --color=always -E'
 alias          cols='tput cols'
 
 alias    asciitable='chars | head -n 38'
