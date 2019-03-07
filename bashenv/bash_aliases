@@ -66,7 +66,9 @@ alias      syncdirs='rsync -avhu --progress'
 alias          rscp='rsync -rave ssh --progress'
 alias       finddos="grep -IUlr $'\r'"
 
-alias         bdiff='bcompare'
+test ${HOST_IS_MACOS}                                                          \
+  && alias    bdiff='bcomp'                                                    \
+  || alias    bdiff='bcompare'
 alias         sdiff='sdiff -w$(tput cols)'
 
 alias     systemctl='systemctl --no-pager'
@@ -149,3 +151,14 @@ alias   sift="pe 'sift shift, @ARGV'"
 alias  sifti="pe 'sifti shift, @ARGV'"
 alias   bury="pe 'bury shift, @ARGV'"
 alias  buryi="pe 'buryi shift, @ARGV'"
+
+# some convenient base conversion aliases
+alias d2h="perl -e 'printf qq|%X$/|, int(shift)'"
+alias d2o="perl -e 'printf qq|%o$/|, int(shift)'"
+alias d2b="perl -e 'printf qq|%b$/|, int(shift)'"
+alias h2d="perl -e 'printf qq|%d$/|, hex(shift)'"
+alias h2o="perl -e 'printf qq|%o$/|, hex(shift)'"
+alias h2b="perl -e 'printf qq|%b$/|, hex(shift)'"
+alias o2h="perl -e 'printf qq|%X$/|, oct(shift)'"
+alias o2d="perl -e 'printf qq|%d$/|, oct(shift)'"
+alias o2b="perl -e 'printf qq|%b$/|, oct(shift)'"
