@@ -116,9 +116,10 @@ fi
 #  and private stuff
 # ------------------------------------------------------------------------------
 
-alias   irssi.lt="ssh -tC lt 'screen -list && screen -Udr || screen -U irssi'"
-alias     ip.pub="curl ifconfig.me"
-alias    ip.home='ip=( $( curl -s https://loveturtle.net/~ardnew/home.ip ) ); echo "${ip}"'
+alias        irssi.lt="ssh -tC lt 'screen -list && screen -Udr || screen -U irssi'"
+alias          ip.pub="curl ifconfig.me"
+alias router.home.att="echo 'user:tech'; echo 'pass:<okey>'; echo 'port:17398'"
+alias         ip.home='ip=( $( curl -s https://loveturtle.net/~ardnew/home.ip ) ); echo "${ip}"'
 
 # ------------------------------------------------------------------------------
 #  access to some of the ardnew::* perlmods
