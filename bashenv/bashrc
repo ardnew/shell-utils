@@ -114,6 +114,10 @@ do
   done < <( ls -a1 "${dir}" )
 done
 
+# the Segger J-Link environment and utility functions
+export JLINK_ENV="${HOME}/.jlinkrc"
+alias resource.jlink=". '$JLINK_ENV'"
+
 # ------------------------------------------------------------------------------
 #  some other convenient constants
 # ------------------------------------------------------------------------------

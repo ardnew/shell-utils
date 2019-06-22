@@ -117,6 +117,7 @@ fi
 # ------------------------------------------------------------------------------
 
 alias   irssi.lt="ssh -tC lt 'screen -list && screen -Udr || screen -U irssi'"
+alias     ip.pub="curl ifconfig.me"
 alias    ip.home='ip=( $( curl -s https://loveturtle.net/~ardnew/home.ip ) ); echo "${ip}"'
 
 # ------------------------------------------------------------------------------

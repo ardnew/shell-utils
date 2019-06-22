@@ -1,0 +1,227 @@
+#!/bin/bash
+
+# serial number for the attached J-Link device
+serialno="801008055" # J-Link EDU Mini
+echo "using J-Link debugger (S/N $serialno)"
+
+segger_path="/opt/SEGGER"
+jlink_path="${segger_path}/JLink"
+
+arduino_build_dir_path="/tmp"
+arduino_build_dir_prefix="arduino_build_"
+arduino_build_bin_suffix=".ino.elf"
+
+commander_bin="JLinkExe"
+gdbserver_bin="JLinkGDBServer"
+gdb_bin=$( which gdb-multiarch ) 
+cgdb_bin=$( which cgdb )
+
+jlink-commander()
+{
+  iface="SWD"
+  speed="4000"
+
+  device=$( __jlink-target-device ${@} )
+  if [[ -n $device ]]
+  then
+    pushd "$jlink_path" &> "/dev/null"
+    "$commander_bin" -autoconnect 1 -if "$iface" -speed "$speed" USB "$serialno" -device "$device"
+    popd &> "/dev/null"
+  fi
+}
+
+jlink-gdbserver()
+{
+  iface="SWD"
+  speed="4000"
+
+  device=$( __jlink-target-device ${@} )
+  if [[ -n $device ]]
+  then
+    pushd "$jlink_path" &> "/dev/null"
+    "$gdbserver_bin" -if "$iface" -speed "$speed" -device "$device"
+    popd &> "/dev/null"
+  fi
+}
+
+jlink-gdb-options()
+{
+  tcpport="2331"
+
+  symbols=$1
+  if [[ -f "$symbols" ]]
+  then
+    perl -le "print STDERR 'using symbols from file: $symbols'"
+    shift
+    device=$( __jlink-target-device ${@} )
+    if [[ -n $device ]]
+    then
+
+      symdir=$( readlink -f "$symbols" )
+      symdir=$( dirname "$symdir" )
+
+      gdbinit=$( mktemp -q -p "$symdir" -t "$( basename $symbols ).XXXXX.gdbinit" )
+
+      # configure the default gdbinit options
+      cat <<GDB > "$gdbinit"
+target remote localhost:$tcpport
+monitor device "$device"
+monitor speed auto
+GDB
+
+      # add all of the project's included libraries' sources to the gdb search path
+      find "${symdir}/"{"core","libraries","preproc","sketch"} -type d -print | \
+        while read -re lib
+        do
+          echo "dir \"$lib\"" >> "$gdbinit"
+        done
+
+      # add finishing options for restarting the target to the end of the gdbinit
+      cat <<GDB >> "$gdbinit"
+file "$symbols"
+load
+monitor reset
+GDB
+
+      echo $gdbinit
+      return 0
+
+    fi
+  else
+    perl -le "print STDERR 'error: no symbols file (.elf) provided'"
+  fi
+  return 1
+}
+
+jlink-gdb()
+{
+  gdbinit=$( jlink-gdb-options $@ )
+  [[ $? -eq 0 ]] || return $?
+  gdbcmd="$gdb_bin -command=$gdbinit"
+  echo "--------"
+  echo $gdbcmd
+  echo "--------"
+  $gdbcmd
+  rm -f "$gdbinit" # clean up, remove the init file
+}
+
+jlink-cgdb()
+{
+  gdbinit=$( jlink-gdb-options $@ )
+  [[ $? -eq 0 ]] || return $?
+  gdbcmd="$cgdb_bin -d $gdb_bin -- -command=$gdbinit"
+  echo "--------"
+  echo $gdbcmd
+  echo "--------"
+  $gdbcmd
+  rm -f "$gdbinit" # clean up, remove the init file
+}
+
+newest-arduino-build-dir()
+{
+  # only looks at the build directories' MTIME
+  command ls -td "${arduino_build_dir_path}/${arduino_build_dir_prefix}"* | head -1
+}
+
+newest-arduino-build-elf()
+{
+  # looks at all of the compiled ELFs' MTIMEs to determine which was actually
+  # compiled most recently. 
+
+  # -maxdepth 2 because the compiled ELF should always be in the root of one
+  # of the build dirs, which are themselves 1 level below the find root.
+  find "$arduino_build_dir_path" -maxdepth 2 -type f -iname "*.ino.elf" \
+    -printf "%Ts\t%p\n" 2>"/dev/null" | sort -nr | cut -f2 | head -1
+}
+
+__jlink-target-device()
+{
+  pushd "$self_path" &> "/dev/null"
+  if [[ $# -gt 0 ]]
+  then
+    token=${@}
+  else
+    read -re -a token -p "target device or CPU core: "
+  fi
+  
+  core=$( perl <( cat <<"PL"
+# this script accepts as input the name of an MCU board and prints the name of
+# its processor core. this translation is intended for use when configuring
+# the J-Link debugger when you only know the common name of the board and not
+# the arbitrary processor identity.
+
+use strict;
+use warnings;
+
+my @MCU =
+  (
+    [ "ATmega328P",  qw| Metro Mini 328 | ],
+    [ "ATSAMD21G18", qw| Circuit Playground Express | ],
+    [ "ATSAMD21G18", qw| Hallowing M0 Express | ],
+    [ "ATSAMD21E18", qw| Gemma M0 | ],
+    [ "ATSAMD51J19", qw| Feather M4 Express | ],
+    [ "ATSAMD51P20", qw| Grand Central M4 Express | ],
+    [ "ATSAMD51J20", qw| PyPortal | ],
+    [ "ATSAMD51G19", qw| ItsyBitsy M4 Express | ],
+    [ "ATSAMD21E18", qw| Trinket M0 | ],
+  );
+
+sub combine { $_ = lc join "", @_; s/[\s\-_]*//g; quotemeta $_ }
+
+if (0 == scalar @ARGV)
+{
+  printf STDERR "error: no target board provided$/";
+
+  print STDERR "known targets:$/";
+  for my $mcu (@MCU)
+  {
+    my $core  = shift @$mcu;
+    printf STDERR "  %s (%s)$/", join(" ", @$mcu), $core;
+  }
+
+  exit -1;
+}
+
+my $input = combine @ARGV;
+my @match;
+
+for my $mcu (@MCU)
+{
+  my $core  = shift @$mcu;
+  my $ident = combine @$mcu;
+
+  push @match, [ $core, @$mcu ]
+    if $ident =~ /$input/i or $core =~ /$input/i;
+}
+
+my $count = scalar @match;
+
+if (1 == $count)
+{
+  my $core = shift @{$match[0]};
+  printf STDERR "using %s (%s)$/", join(" ", @{$match[0]}), $core;
+  print "$core$/";
+}
+else
+{
+  if ($count > 1)
+  {
+    for my $m (@match)
+    {
+      my $core = shift @{$m};
+      printf STDERR "  %s (%s)$/", join(" ", @$m), $core;
+    }
+    print STDERR "too many matches$/";
+  }
+  else # count < 1
+  {
+    print STDERR "no match$/";
+  }
+  exit 1;
+}
+PL
+  ) ${token[@]} )
+  [[ $ret -eq 0 ]] && echo $core
+  popd &> "/dev/null"
+}
+

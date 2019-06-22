@@ -66,7 +66,7 @@ dst_path=$( eval echo "~${user}" )
 
 echo "installing for user: ${user}"
 
-files=( bash_profile bashrc bash_aliases bash_functions bash_colors hushlogin bash_logout vimrc screenrc gdbinit )
+files=( bash_profile bashrc bash_aliases bash_functions bash_colors hushlogin bash_logout vimrc screenrc gdbinit gdbinit_golang jlinkrc )
 
 for curr in ${files[@]}
 do
