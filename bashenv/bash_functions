@@ -849,6 +849,17 @@ print $P;
   fi
 }
 
+bdiff ()
+{
+    bc3_path='/mnt/c/andrew/bin/bcompare3/BComp.com';
+    if [[ $# -ge 2 ]]; then
+        lv=$( winpath "$1" );
+        rv=$( winpath "$2" );
+        echo "'$bc3_path' '$lv' '$rv'";
+        "$bc3_path" "$lv" "$rv";
+    fi
+}
+
 windows-special-folder()
 {
   local codemin=0
