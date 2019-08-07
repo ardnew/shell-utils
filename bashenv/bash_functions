@@ -802,14 +802,51 @@ unixpath()
 {
   path=$1
   [[ -z ${path} ]] && path="."
-  cygpath --unix --absolute "${path}"
+
+  if test ${HOST_IS_CYGWIN}
+  then
+    cygpath --unix --absolute "${path}"
+  fi
 }
 
 winpath()
 {
   path=$1
   [[ -z ${path} ]] && path="."
-  cygpath --windows --absolute --long-name "${path}"
+
+  if test ${HOST_IS_CYGWIN}
+  then
+    cygpath --windows --absolute --long-name "${path}"
+
+  elif test ${HOST_IS_WSL}
+  then
+
+    # intelligently converts a given unix WSL path to its physical Windows path
+    # by inspecting symlinks and mount points.
+    abs=$( readlink -f "$path" )
+    mount | perl -e'
+use strict;
+use warnings;
+# use the following powershell script to obtain the WSL root fs path:
+#   (Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss | ForEach-Object {Get-ItemProperty $_.PSPath}) | select DistributionName,BasePath
+# powershell is -extremely- slow to invoke, so im hardcoding this for now.
+my $rootfs = q|C:\Users\G81222\AppData\Local\Packages\CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc\LocalState|;
+
+my ($D, $M, $P) = ("", "", shift);
+while (<>)
+{ 
+  s{^\s*|\s*$}{}g;
+  my ($d, $m) = split m{ on | type \S+ \([^\)]*\)\s*$};
+  ($D, $M) = ($d, $m)
+    if length $m > length $M and $P =~ m{^\Q$m\E};
+}
+$D = $rootfs . $M if $D eq "rootfs" and $M eq "/";
+$P =~ s{^\Q$M\E}{$D};
+$P =~ s{/}{\\}g;
+print $P;
+' "$abs" 
+
+  fi
 }
 
 windows-special-folder()
