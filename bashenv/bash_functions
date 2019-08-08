@@ -849,6 +849,8 @@ print $P;
   fi
 }
 
+if test ${HOST_IS_WSL}
+then
 bdiff ()
 {
     bc3_path='/mnt/c/andrew/bin/bcompare3/BComp.com';
@@ -859,6 +861,7 @@ bdiff ()
         "$bc3_path" "$lv" "$rv";
     fi
 }
+fi
 
 windows-special-folder()
 {
