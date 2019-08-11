@@ -9,7 +9,7 @@ conky.config =
     --  performance configuration
     -- ----------------------------------------------------
 
-    background = true,
+    --background = true,
 
     own_window = true,
     own_window_transparent = true,
@@ -75,22 +75,39 @@ conky.text =
 [[
 ${alignc}${color2}${texeci 3600 whoami}@$nodename${color1} - $sysname $kernel
 ${color2}${hr 2}${color0}
-${goto 10}${color0}  CPU1: ${color1}${cpu cpu1}%${goto 138}${cpubar cpu1 12,83}${goto 240}${color0}CPU17: ${color1}${cpu cpu17}%${goto 355}${cpubar cpu17 12,83}
-${goto 10}${color0}  CPU2: ${color1}${cpu cpu2}%${goto 138}${cpubar cpu2 12,83}${goto 240}${color0}CPU18: ${color1}${cpu cpu18}%${goto 355}${cpubar cpu18 12,83}
-${goto 10}${color0}  CPU3: ${color1}${cpu cpu3}%${goto 138}${cpubar cpu3 12,83}${goto 240}${color0}CPU19: ${color1}${cpu cpu19}%${goto 355}${cpubar cpu19 12,83}
-${goto 10}${color0}  CPU4: ${color1}${cpu cpu4}%${goto 138}${cpubar cpu4 12,83}${goto 240}${color0}CPU20: ${color1}${cpu cpu20}%${goto 355}${cpubar cpu20 12,83}
-${goto 10}${color0}  CPU5: ${color1}${cpu cpu5}%${goto 138}${cpubar cpu5 12,83}${goto 240}${color0}CPU21: ${color1}${cpu cpu21}%${goto 355}${cpubar cpu21 12,83}
-${goto 10}${color0}  CPU6: ${color1}${cpu cpu6}%${goto 138}${cpubar cpu6 12,83}${goto 240}${color0}CPU22: ${color1}${cpu cpu22}%${goto 355}${cpubar cpu22 12,83}
-${goto 10}${color0}  CPU7: ${color1}${cpu cpu7}%${goto 138}${cpubar cpu7 12,83}${goto 240}${color0}CPU23: ${color1}${cpu cpu23}%${goto 355}${cpubar cpu23 12,83}
-${goto 10}${color0}  CPU8: ${color1}${cpu cpu8}%${goto 138}${cpubar cpu8 12,83}${goto 240}${color0}CPU24: ${color1}${cpu cpu24}%${goto 355}${cpubar cpu24 12,83}
-${goto 10}${color0}  CPU9: ${color1}${cpu cpu9}%${goto 138}${cpubar cpu9 12,83}${goto 240}${color0}CPU25: ${color1}${cpu cpu25}%${goto 355}${cpubar cpu25 12,83}
-${goto 10}${color0} CPU10: ${color1}${cpu cpu10}%${goto 138}${cpubar cpu10 12,83}${goto 240}${color0}CPU26: ${color1}${cpu cpu26}%${goto 355}${cpubar cpu26 12,83}
-${goto 10}${color0} CPU11: ${color1}${cpu cpu11}%${goto 138}${cpubar cpu11 12,83}${goto 240}${color0}CPU27: ${color1}${cpu cpu27}%${goto 355}${cpubar cpu27 12,83}
-${goto 10}${color0} CPU12: ${color1}${cpu cpu12}%${goto 138}${cpubar cpu12 12,83}${goto 240}${color0}CPU28: ${color1}${cpu cpu28}%${goto 355}${cpubar cpu28 12,83}
-${goto 10}${color0} CPU13: ${color1}${cpu cpu13}%${goto 138}${cpubar cpu13 12,83}${goto 240}${color0}CPU29: ${color1}${cpu cpu29}%${goto 355}${cpubar cpu29 12,83}
-${goto 10}${color0} CPU14: ${color1}${cpu cpu14}%${goto 138}${cpubar cpu14 12,83}${goto 240}${color0}CPU30: ${color1}${cpu cpu30}%${goto 355}${cpubar cpu30 12,83}
-${goto 10}${color0} CPU15: ${color1}${cpu cpu15}%${goto 138}${cpubar cpu15 12,83}${goto 240}${color0}CPU31: ${color1}${cpu cpu31}%${goto 355}${cpubar cpu31 12,83}
-${goto 10}${color0} CPU16: ${color1}${cpu cpu16}%${goto 138}${cpubar cpu16 12,83}${goto 240}${color0}CPU32: ${color1}${cpu cpu32}%${goto 355}${cpubar cpu32 12,83}
+${voffset   0}${goto 300}${goto 338}${cpubar  cpu1 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar  cpu2 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar  cpu3 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar  cpu4 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar  cpu5 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar  cpu6 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar  cpu7 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar  cpu8 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar  cpu9 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu10 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu11 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu12 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu13 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu14 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu15 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu16 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu17 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu18 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu19 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu20 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu21 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu22 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu23 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu24 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu25 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu26 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu27 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu28 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu29 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu30 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu31 6,100}
+${voffset -10}${goto 300}${goto 338}${cpubar cpu32 6,100}
+
 ${cpugraph cpu0 60 ${color FF0000} ${color 0000FF} -l -t}
 ${alignc}${color0}CPU: ${color1}${cpu cpu0}% ${color0}(${color1}$freq_g GHz${color0})
 ${color2}${hr 2}${color0}

@@ -1,0 +1,160 @@
+conky.config =
+{
+    -- ----------------------------------------------------
+    --  performance configuration
+    -- ----------------------------------------------------
+
+    background = true,
+
+    own_window = true,
+    own_window_transparent = false,
+    own_window_type = 'normal',
+    own_window_argb_visual = true,
+    own_window_argb_value = 0x1F,
+    own_window_class = 'conky',
+
+    own_window_hints = undecorated,below,sticky,skip_taskbar,skip_pager,
+
+    double_buffer = true,
+    update_interval = 1.0,
+    cpu_avg_samples = 2,
+    net_avg_samples = 2,
+    no_buffers = true,
+
+    out_to_console = false,
+    out_to_stderr = false,
+    extra_newline = false,
+
+    -- ----------------------------------------------------
+    --  appearance configuration
+    -- ----------------------------------------------------
+
+    alignment = 'top_right',
+
+    stippled_borders = 0,
+    border_width = 1,
+    draw_borders = false,
+    draw_graph_borders = true,
+    draw_outline = false,
+    draw_shades = false,
+
+    minimum_width = 570,
+    minimum_height = 1,
+
+    use_xft = true,
+    --font = 'Ubuntu Mono:size=10',
+    --font = 'Hack:size=7',
+    font = 'Oxygen Mono:size=7',
+    format_human_readable = true,
+
+    gap_x = 64,
+    gap_y = 256,
+
+    uppercase = false,
+    use_spacer = 'right',
+    show_graph_scale = false,
+    show_graph_range = false,
+
+    -- ----------------------------------------------------
+    --  colors
+    -- ----------------------------------------------------
+
+    default_color = 'white',
+    default_outline_color = 'white',
+    default_shade_color = 'black',
+
+    color0 = 'grey', -- title color
+    color1 = 'white', -- data color
+    color2 = '98D443', -- name color
+    color3 = 'FF0000', -- gradient low
+    color4 = '0000FF', -- gradient high
+
+    template1 = [[ ${alignr}${color1}${cpubar cpu\1 10,100} ]], -- CPU bar
+    template2 = [[ ${color0}\1 ${color2}${hr}${color0} ]], -- horizontal rule
+    template3 = [[  ]]
+}
+
+
+
+
+--$(nvidia-smi -q | grep -c "Process ID")
+--${alignc}${texecpi 5 printf '${color0}nvm: ${color1}%.1f°C ${color0}sdb: ${color1}%.1f°C' $(sudo smartctl -x /dev/nvme0n1 | \grep -oP '^(Current )?Temperature:\s+\K\d+' ) $(sudo smartctl -x /dev/sdb | \grep -oP '^(Current )?Temperature:\s+\K\d+' )}
+
+
+
+conky.text =
+[[
+
+${alignc}${color2}${texeci 3600 whoami}@$nodename${color1} - $sysname $kernel
+
+${template2 Processes}
+
+${goto 10}${color0}CPU${color1} ${color0}(${color1}$freq_g GHz${color0})${goto 160}PID${goto 230}USER${goto 290}  CPU%${goto 350}  MEM% ${template1 1}
+${goto 10}${color2}${top name 1}${goto 160}${color1}${top pid 1}${goto 230}${top user 1}${goto 290}${top cpu 1}${goto 350}${top mem 1} ${template1 2}
+${goto 10}${color2}${top name 2}${goto 160}${color1}${top pid 2}${goto 230}${top user 2}${goto 290}${top cpu 2}${goto 350}${top mem 2} ${template1 3}
+${goto 10}${color2}${top name 3}${goto 160}${color1}${top pid 3}${goto 230}${top user 3}${goto 290}${top cpu 3}${goto 350}${top mem 3} ${template1 4}
+${goto 10}${color2}${top name 4}${goto 160}${color1}${top pid 4}${goto 230}${top user 4}${goto 290}${top cpu 4}${goto 350}${top mem 4} ${template1 5}
+${goto 10}${voffset 4}${color1}${cpubar  cpu0 12,430}${voffset -4}${template1 6}
+${goto 10}${cpugraph cpu0 60,430 FFFFFF FF0000 -t}${template1 7}${voffset -60}
+${template1 8}
+${template1 9}
+${template1 10}
+${alignc}${color0}CPU: ${color1}${cpu cpu0}% ${color0}Proc: ${color1}$processes ${color0}Thr: ${color1}$running_threads ${color0}Run: ${color1}$running_processes${template1 11}
+${alignc}${texecpi 5 printf '${color0}GPU: ${color1}%d%%${color0} Free: ${color1}%dMiB${color0} / ${color1}%dMiB - ${color1}%d%%' $(nvidia-smi --format=csv,noheader,nounits --query-gpu=utilization.gpu,memory.used,memory.total,utilization.memory|tr -d ",")}${template1 12}
+${template1 13}
+${goto 10}${color0}RAM${goto 160}PID${goto 230}USER${goto 290}  MEM%${goto 350}  VRES ${template1 14}
+${goto 10}${color2}${top_mem name 1}${goto 160}${color1}${top_mem pid 1}${goto 230}${top_mem user 1}${goto 290}${top_mem mem 1}${goto 370}${top_mem mem_res 1} ${template1 15}
+${goto 10}${color2}${top_mem name 2}${goto 160}${color1}${top_mem pid 2}${goto 230}${top_mem user 2}${goto 290}${top_mem mem 2}${goto 370}${top_mem mem_res 2} ${template1 16}
+${goto 10}${color2}${top_mem name 3}${goto 160}${color1}${top_mem pid 3}${goto 230}${top_mem user 3}${goto 290}${top_mem mem 3}${goto 370}${top_mem mem_res 3} ${template1 17}
+${goto 10}${color2}${top_mem name 4}${goto 160}${color1}${top_mem pid 4}${goto 230}${top_mem user 4}${goto 290}${top_mem mem 4}${goto 370}${top_mem mem_res 4} ${template1 18}
+${goto 10}${voffset 4}${color1}${membar  12,430}${voffset -4}${template1 19}
+${goto 10}${memgraph 60,430 FFFFFF FF0000 -t}${template1 20}${voffset -60}
+${template1 21}
+${template1 22}
+${template1 23}
+${alignc}${color0}RAM: ${color1}$mem${color0} / ${color1}$memmax ${color0}- ${color1}$memperc%${template1 24}
+${template1 25}
+${template1 26}
+${goto 10}${texecpi 10 a=$(sensors -A nct6779-isa-0290 | \grep -oP '^(CPUTIN):\s+\+\K([\d\.]+)');printf '${color0}CPU: ${color1}%.1f°C ${goto 125}${execbar 4,315 echo %.0f}' $a $a}${template1 27}
+${goto 10}${texecpi 10 a=$(sensors -A nct6779-isa-0290 | \grep -oP '^(SYSTIN):\s+\+\K([\d\.]+)');printf '${color0}M/B: ${color1}%.1f°C ${goto 125}${execbar 4,315 echo %.0f}' $a $a}${template1 28}
+${goto 10}${texecpi 10 a=$(nvidia-smi --format=csv,noheader,nounits --query-gpu=temperature.gpu);printf '${color0}GPU: ${color1}%.1f°C ${goto 125}${execbar 4,315 echo %.0f}' $a $a}${template1 29}
+${template1 30}
+${template1 31}
+${template1 32}
+${template2 Network}
+
+${goto 10}${color0}${color2}AT&T U-verse ${color0}down: ${color1}${downspeed enp4s0}${goto 300}${color0}${color2}AT&T U-verse ${color0}up: ${color1}${upspeed enp4s0}
+${goto 10}${color0}${downspeedgraph enp4s0 30,275 FFFFFF FF0000 -t} $alignr${color0}${upspeedgraph enp4s0 30,275 FFFFFF FF0000 -t}
+${goto 10}${color0}${color2}Wu-Tang LAN  ${color0}down: ${color1}${downspeed enp6s0}${goto 300}${color0}${color2}Wu-Tang LAN  ${color0}up: ${color1}${upspeed enp6s0}
+${goto 10}${color0}${downspeedgraph enp6s0 30,275 FFFFFF FF0000 -t} $alignr${color0}${upspeedgraph enp6s0 30,275 FFFFFF FF0000 -t}
+${goto 10}${color0}${color2}Wu-Tank WLAN ${color0}down: ${color1}${downspeed wlp5s0}${goto 300}${color0}${color2}Wu-Tank WLAN ${color0}up: ${color1}${upspeed wlp5s0}
+${goto 10}${color0}${downspeedgraph wlp5s0 30,275 FFFFFF FF0000 -t} $alignr${color0}${upspeedgraph wlp5s0 30,275 FFFFFF FF0000 -t}
+
+${color0}Outbound Connection ${alignr} Remote Service/Port${color1}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 0}${alignr}${color1}${tcp_portmon 32768 61000 rservice 0}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 1}${alignr}${color1}${tcp_portmon 32768 61000 rservice 1}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 2}${alignr}${color1}${tcp_portmon 32768 61000 rservice 2}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 3}${alignr}${color1}${tcp_portmon 32768 61000 rservice 3}
+${goto 10}${color2}${tcp_portmon 32768 61000 rhost 4}${alignr}${color1}${tcp_portmon 32768 61000 rservice 4}
+${color0}Inbound Connection ${alignr} Local Service/Port${color1}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 0}${alignr}${color1}${tcp_portmon 1 32767 lservice 0}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 1}${alignr}${color1}${tcp_portmon 1 32767 lservice 1}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 2}${alignr}${color1}${tcp_portmon 1 32767 lservice 2}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 3}${alignr}${color1}${tcp_portmon 1 32767 lservice 3}
+${goto 10}${color2}${tcp_portmon 1 32767 rhost 4}${alignr}${color1}${tcp_portmon 1 32767 lservice 4}
+
+${template2 Disk I/O}
+
+${goto 10}${color2}/         ${color1}${fs_used /}${color0} / ${color1}${fs_size /}${goto 275}${fs_bar 12 /}
+${goto 170}${color0}R ${color1}${diskio_read}
+${goto 170}${color0}W ${color1}${diskio_write}
+${voffset -38}${goto 275}${diskiograph /dev/nvme0n1p2 30, FFFFFF FF0000 -t}
+
+${goto 10}${color2}/backup   ${color1}${fs_used /backup}${color0} / ${color1}${fs_size /backup}${goto 275}${fs_bar 12 /backup}
+${alignc}${color0}Last: ${color1}${texeci 3600 stat -c "%y" $(tail -n 1 /backup/backup.log | \grep -oP 'file=\K[^;]+') | sed -E 's/\..+$//' } ${color0}(${color1}${texeci 3600 tail -n 1 /backup/backup.log | \grep -oP 'md5=\K[^;]+' }${color0})${color1}
+
+${goto 10}${color2}SG4TB-NIX ${color1}${fs_used /mnt/SG4TB-NIX}${color0} / ${color1}${fs_size /mnt/SG4TB-NIX}${goto 275}${fs_bar 12 /mnt/SG4TB-NIX}
+${goto 10}${color2}SG4TB-OSX ${color1}${fs_used /mnt/SG4TB-OSX}${color0} / ${color1}${fs_size /mnt/SG4TB-OSX}${goto 275}${fs_bar 12 /mnt/SG4TB-OSX}
+${goto 10}${color2}SG4TB-WIN ${color1}${fs_used /mnt/SG4TB-WIN}${color0} / ${color1}${fs_size /mnt/SG4TB-WIN}${goto 275}${fs_bar 12 /mnt/SG4TB-WIN}
+${goto 10}${color2}SG4TB-DOS ${color1}${fs_used /mnt/SG4TB-DOS}${color0} / ${color1}${fs_size /mnt/SG4TB-DOS}${goto 275}${fs_bar 12 /mnt/SG4TB-DOS}
+]]
