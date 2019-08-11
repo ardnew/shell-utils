@@ -307,9 +307,21 @@ void printconsts()
   putchar('\n');
   puts(majorline);
   printf("%*s [ %*d | %#*x (%3zu-bit)]\n%s\n" \
-             "\trounding mode for floating-point operations\n",
+             "\trounding mode for floating-point operations (see: fesetround(int), fegetround(void)):\n"
+             "\t%*d | the default rounding direction is not known\n" \
+             "\t%*d | toward zero, FE_TOWARDZERO\n" \
+             "\t%*d | to nearest, FE_TONEAREST\n" \
+             "\t%*d | towards positive infinity, FE_UPWARD\n" \
+             "\t%*d | towards negative infinity, FE_DOWNWARD\n" \
+             "\t%*s | implementation-defined behavior\n",
     CSYM_WIDTH, "FLT_ROUNDS", DVAL_WIDTH, FLT_ROUNDS, HVAL_WIDTH, FLT_ROUNDS, 8 * sizeof(FLT_ROUNDS),
-    minorline);
+    minorline,
+    DVAL_WIDTH, -1,
+    DVAL_WIDTH,  0,
+    DVAL_WIDTH,  1,
+    DVAL_WIDTH,  2,
+    DVAL_WIDTH,  3,
+    DVAL_WIDTH, "other");
   puts(majorline);
 #endif
 
@@ -318,7 +330,7 @@ void printconsts()
   putchar('\n');
   puts(majorline);
   printf("%*s [ %*d | %#*x (%3zu-bit)] /*C99*/\n%s\n" \
-             "\tevaluation method of expressions involving different floating-point types\n",
+             "\tevaluation method of expressions involving different floating-point types:\n",
     CSYM_WIDTH, "FLT_EVAL_METHOD", DVAL_WIDTH, FLT_EVAL_METHOD, HVAL_WIDTH, FLT_EVAL_METHOD, 8 * sizeof(FLT_EVAL_METHOD),
     minorline);
   puts(majorline);
