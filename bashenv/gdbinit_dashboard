@@ -45,6 +45,11 @@ The list of all the available styles can be obtained with (from GDB itself):
                 'default': 0,
                 'type': int
             },
+            'dereference': {
+                'doc': 'Annotate pointers with the pointed value.',
+                'default': True,
+                'type': bool
+            },
             # prompt
             'prompt': {
                 'doc': """Command prompt.
@@ -204,15 +209,19 @@ def format_value(value, compact=None):
     # (TYPE_CODE_RVALUE_REF is not supported by old GDB)
     if value.type.code in (getattr(gdb, 'TYPE_CODE_REF', None),
                            getattr(gdb, 'TYPE_CODE_RVALUE_REF', None)):
-        try:
-            out = to_string(value.referenced_value())
-        except gdb.MemoryError:
-            out = to_string(value)
-    else:
-        try:
-            out = to_string(value)
-        except gdb.MemoryError as e:
-            return ansi(e, R.style_error)
+        value = value.referenced_value()
+    # format the value
+    out = to_string(value)
+    # dereference up to the actual value if requested
+    if R.dereference and value.type.code == gdb.TYPE_CODE_PTR:
+        while value.type.code == gdb.TYPE_CODE_PTR:
+            try:
+                value = value.dereference()
+            except gdb.error as e:
+                break
+        else:
+            formatted = to_string(value)
+            out += '{} {}'.format(ansi(':', R.style_low), formatted)
     # compact the value
     if compact is not None and compact or R.compact_values:
         out = re.sub(r'$\s*', '', out, flags=re.MULTILINE)
@@ -222,7 +231,7 @@ def format_value(value, compact=None):
     return out
 
 class Beautifier():
-    def __init__(self, filename, tab_size=4):
+    def __init__(self, hint, tab_size=4):
         self.tab_spaces = ' ' * tab_size
         self.active = False
         if not R.ansi:
@@ -230,10 +239,16 @@ class Beautifier():
         # attempt to set up Pygments
         try:
             import pygments
-            from pygments.lexers import get_lexer_for_filename
+            from pygments.lexers import GasLexer, NasmLexer
             from pygments.formatters import Terminal256Formatter
+            if hint == 'att':
+                self.lexer = GasLexer()
+            elif hint == 'intel':
+                self.lexer = NasmLexer()
+            else:
+                from pygments.lexers import get_lexer_for_filename
+                self.lexer = get_lexer_for_filename(hint, stripnl=False)
             self.formatter = Terminal256Formatter(style=R.syntax_highlighting)
-            self.lexer = get_lexer_for_filename(filename, stripnl=False)
             self.active = True
         except ImportError:
             # Pygments not available
@@ -966,13 +981,13 @@ class Source(Dashboard.Module):
         return {
             'context': {
                 'doc': 'Number of context lines.',
-                'default': 5,
+                'default': 20,
                 'type': int,
                 'check': check_ge_zero
             },
             'tab-size': {
                 'doc': 'Number of spaces used to display the tab character.',
-                'default': 4,
+                'default': 2,
                 'name': 'tab_size',
                 'type': int,
                 'check': check_gt_zero
@@ -1030,17 +1045,13 @@ instructions constituting the current statement are marked, if available."""
                 func_start = to_unsigned(value)
             except gdb.error:
                 pass  # e.g., @plt
-        # fetch the assembly flavor and the extension used by Pygments
+        # fetch the assembly flavor anduse it as hint for Pygments
         try:
             flavor = gdb.parameter('disassembly-flavor')
         except:
-            flavor = None  # not always defined (see #36)
-        filename = {
-            'att': '.s',
-            'intel': '.asm'
-        }.get(flavor, '.s')
+            flavor = 'att'  # not always defined (see #36)
         # prepare the highlighter
-        highlighter = Beautifier(filename)
+        highlighter = Beautifier(flavor)
         # compute the maximum offset size
         if func_start:
             max_offset = max(len(str(abs(asm[0]['addr'] - func_start))),

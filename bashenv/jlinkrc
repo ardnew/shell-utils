@@ -1,5 +1,41 @@
 #!/bin/bash
 
+# ------------------------------------------------------------------------------
+#
+#  functions and environment variables for using the Segger J-Link GDB SWD 
+#  debugger. the serial number can be found printed on top of the device.
+#
+#  developed on and for Ubuntu, the J-Link EDU Mini, and an array of Adafruit
+#  microcontrollers based on ARM Cortex M0 and M4 (SAMD) chipsets. should
+#  probably work with most older Arduino-compatible (AVR) targets such as 
+#  ATmega328, ATtiny85, etc. -- but I certainly haven't tested most of them.
+#
+#  verify the paths and options below.
+#
+#  typical usage for Arduino devices is as follows:
+#
+#    1. compile the sketch from the Arduino IDE
+#      a. **NOTE** some newer boards/chips (like all of Adafruit's M4 boards)
+#         actually have a "Debug" switch in the Tools menu to enable gcc's
+#         debug flags... make goddamn sure its enabled to avoid frustration.
+#
+#    2. be sure to source this environment script, and then run one of the gdb
+#       scripts with 2 paramters: (a) the path to the compiled ELF executable,
+#       and (b) the name of the target processor core.
+#
+#       the path can be determined automatically based on file last mod (MTIME) 
+#       time and the default build path (defined with the arduino_build_* vars 
+#       below) as well as the processor core, given a string pattern describing
+#       the common name of the board.
+#
+#       for example, debugging the most recently built Arduino executable on an
+#       Adafruit Grand Central M4 using the ncurses-vi-like cgdb:
+#
+#         $ . ~/.jlinkrc    # (be sure to source this environment script)
+#         $ jlink-cgdb `newest-arduino-build-elf` grand
+#
+# ------------------------------------------------------------------------------
+
 # serial number for the attached J-Link device
 serialno="801008055" # J-Link EDU Mini
 echo "using J-Link debugger (S/N $serialno)"
@@ -13,8 +49,15 @@ arduino_build_bin_suffix=".ino.elf"
 
 commander_bin="JLinkExe"
 gdbserver_bin="JLinkGDBServer"
+
 gdb_bin=$( which gdb-multiarch ) 
+gdb_bin_init="/home/andrew/Development/gdb/gdb-dashboard/.gdbinit"
+
 cgdb_bin=$( which cgdb )
+cgdb_bin_init=
+
+gdb_opt_init="--init-command=" # after loading inferior
+#gdb_opt_init="--command="      # before loading inferior
 
 jlink-commander()
 {
@@ -44,7 +87,7 @@ jlink-gdbserver()
   fi
 }
 
-jlink-gdb-options()
+__jlink-gdb-options()
 {
   tcpport="2331"
 
@@ -62,8 +105,13 @@ jlink-gdb-options()
 
       gdbinit=$( mktemp -q -p "$symdir" -t "$( basename $symbols ).XXXXX.gdbinit" )
 
+      if [[ -n $initbase ]]
+      then
+        echo "source $initbase" > "$gdbinit"
+      fi
+
       # configure the default gdbinit options
-      cat <<GDB > "$gdbinit"
+      cat <<GDB >> "$gdbinit"
 target remote localhost:$tcpport
 monitor device "$device"
 monitor speed auto
@@ -75,6 +123,7 @@ GDB
         do
           echo "dir \"$lib\"" >> "$gdbinit"
         done
+      echo "dir \"$symdir/libraries\"" >> "$gdbinit"
 
       # add finishing options for restarting the target to the end of the gdbinit
       cat <<GDB >> "$gdbinit"
@@ -95,21 +144,24 @@ GDB
 
 jlink-gdb()
 {
-  gdbinit=$( jlink-gdb-options $@ )
+  gdbinit=$( __jlink-gdb-options $@ )
   [[ $? -eq 0 ]] || return $?
-  gdbcmd="$gdb_bin -command=$gdbinit"
+  gdbcmd="$gdb_bin ${gdb_opt_init}${gdb_bin_init} ${gdb_opt_init}${gdbinit}"
   echo "--------"
   echo $gdbcmd
   echo "--------"
-  $gdbcmd
+  echo "  NOTE: redirect gdb-dashboard output to separate terminal:"
+  echo "    >>> dashboard -output /dev/pts/<TTY#>"
+  echo "--------"
+  $gdbcmd 
   rm -f "$gdbinit" # clean up, remove the init file
 }
 
 jlink-cgdb()
 {
-  gdbinit=$( jlink-gdb-options $@ )
+  gdbinit=$( __jlink-gdb-options $@ )
   [[ $? -eq 0 ]] || return $?
-  gdbcmd="$cgdb_bin -d $gdb_bin -- -command=$gdbinit"
+  gdbcmd="$cgdb_bin -d $gdb_bin -- ${gdb_opt_init}${cgdb_bin_init} ${gdb_opt_init}${gdbinit}"
   echo "--------"
   echo $gdbcmd
   echo "--------"

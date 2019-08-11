@@ -659,7 +659,7 @@ chmod-tree-rw()
 
 rgb2hex()
 {
-  perl -le 'printf"0x%02X%02X%02X$/",map{int($_*255+0.5)}@ARGV' $@
+  perl -le 'printf"0x%02X%02X%02X$/",map{($_<=1.0&&$_>=0.0) ? int($_*255+0.5) : $_}@ARGV' $@
 }
 
 hex2rgb()
