@@ -132,15 +132,32 @@ sub subshell_cmd
 
 sub svn_export
 {
-  my ($bin, $path, $rev, $dir) = @_;
+  my ($bin, $path, $rev, $dir, $iswc) = @_;
 
-  my $exec_retcode =
-    shell_cmd "'$bin' export ".
-      "--force ". # tmpdir creates the dir, use --force to overwrite
-      "--revision $rev ".
-      "'$path' ".
-      "'$dir' ".
-      "";
+  my $exec_retcode;
+
+  if (not $iswc)
+  {
+    $exec_retcode =
+      shell_cmd "mkdir -p '$dir' && ".
+        "'$bin' export ".
+        "--force ". # tmpdir creates the dir, use --force to overwrite
+        "--revision $rev ".
+        "'$path' ".
+        "'$dir' ".
+        "";
+  }
+  else
+  {
+    # recursive copy if path is a directory
+    my $opt = '';
+    $opt .= '-r' if -d $path;
+
+    $exec_retcode =
+      shell_cmd "mkdir -p '$dir' && ".
+        "cp $opt '$path' '$dir' ".
+	"";
+  }
 
   if (0 != $exec_retcode)
   {
@@ -148,13 +165,16 @@ sub svn_export
   }
 }
 
-my ($svn_bin) = grep { 0 == system 'type -t "'.$_.'" 2>&1 > /dev/null' } @SVN_BIN;
-my ($bc3_bin) = grep { 0 == system 'type -t "'.$_.'" 2>&1 > /dev/null' } @BC3_BIN;
+#my ($svn_bin) = grep { 0 == system 'type -t "'.$_.'" 2>&1 > /dev/null' } @SVN_BIN;
+#my ($bc3_bin) = grep { 0 == system 'type -t "'.$_.'" 2>&1 > /dev/null' } @BC3_BIN;
 
-ohno 'required SVN utility not found: ' . join "|", @SVN_BIN
-  unless defined $svn_bin;
-ohno 'required Beyond Compare 3 utility not found: ' . join "|", @BC3_BIN
-  unless defined $bc3_bin;
+#ohno 'required SVN utility not found: ' . join "|", @SVN_BIN
+#  unless defined $svn_bin;
+#ohno 'required Beyond Compare 3 utility not found: ' . join "|", @BC3_BIN
+#  unless defined $bc3_bin;
+
+my $svn_bin = "svn";
+my $bc3_bin = "bcompare";
 
 my %option = ();
 GetOptions(\%option,
@@ -168,26 +188,32 @@ $VERBOSE = $option{verbose} if exists $option{verbose};
 
 final usage unless defined $option{path1} and defined $option{path2};
 
-my ($path1, $rev1) = ($option{path1} =~ m|^(.+)[,@](\d+)$|);
-my ($path2, $rev2) = ($option{path2} =~ m|^(.+)[,@](\d+)$|);
+my ($path1, $rev1) = ($option{path1} =~ m/^(.+)[,@](\d+|WC|HEAD|BASE|COMMITTED|PREV)$/);
+my ($path2, $rev2) = ($option{path2} =~ m/^(.+)[,@](\d+|WC|HEAD|BASE|COMMITTED|PREV)$/);
+
+my $use_wc_path1 = ((not defined $rev1) or (uc($rev1) eq "WC")) and (-e $path1);
+my $use_wc_path2 = ((not defined $rev2) or (uc($rev2) eq "WC")) and (-e $path2);
+
+$rev1 = "WC" if $use_wc_path1;
+$rev2 = "WC" if $use_wc_path2;
 
 ohno 'invalid path: ' . $option{path1}
   unless defined $path1 and defined $rev1;
 ohno 'invalid path: ' . $option{path2}
   unless defined $path2 and defined $rev2;
 
-my $export_dir_path1 = tmpdir(sprintf("%s@%d", basename($path1), $rev1));
-my $export_dir_path2 = tmpdir(sprintf("%s@%d", basename($path2), $rev2));
+my $export_dir_path1 = tmpdir(sprintf("%s@%s", basename($path1), $rev1));
+my $export_dir_path2 = tmpdir(sprintf("%s@%s", basename($path2), $rev2));
 
-svn_export($svn_bin, $path1, $rev1, $export_dir_path1);
-svn_export($svn_bin, $path2, $rev2, $export_dir_path2);
+svn_export($svn_bin, $path1, $rev1, $export_dir_path1, $use_wc_path1);
+svn_export($svn_bin, $path2, $rev2, $export_dir_path2, $use_wc_path2);
 
 sinfo "comparing revisions:";
 sinfo _TAB . "($rev1) $path1";
 sinfo _TAB . "($rev2) $path2";
 
 my $exec_retcode =
-  shell_cmd "'$bc3_bin' /fileviewer='Folder Compare' '$export_dir_path1' '$export_dir_path2'";
+  shell_cmd "'$bc3_bin' --fileviewer='Folder Compare' '$export_dir_path1' '$export_dir_path2'";
 
 if ($VERBOSE > 0)
 {
