@@ -57,7 +57,7 @@ nullglob()
 }
 
 arrjoin()
-{ 
+{
   local IFS="$1"
   shift
   echo ${@}
@@ -460,7 +460,7 @@ pathdel()
 
     my $rgx_newpath = join '|', map { quotemeta } @path;
 
-    print join ':', 
+    print join ':',
       grep { $_ !~ /^(${rgx_newpath})$/ } split /:/, $ENV{$var} || '';
 PL
 
@@ -779,8 +779,15 @@ open()
 
   if [[ -e "${path}" ]]
   then
-    path=$( cygpath --windows --absolute --long-name "${path}" )
-    explorer.exe "${path}"
+    if test ${HOST_IS_CYGWIN}
+    then
+      path=$( cygpath --windows --absolute --long-name "${path}" )
+      explorer.exe "${path}"
+    elif test ${HOST_IS_WSL}
+    then
+      path=$( winpath "${path}" )
+      explorer.exe "${path}"
+    fi
   else
     echo "error: no such file or directory: ${path}"
     return 1
@@ -809,10 +816,21 @@ unixpath()
   fi
 }
 
+winroot()
+{
+  # use the following powershell script to obtain the WSL root fs path:
+  #   (Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss | ForEach-Object {Get-ItemProperty $_.PSPath}) | select DistributionName,BasePath
+  # powershell is -extremely- slow to invoke, so im hardcoding this for now.
+  echo -n 'C:\Users\G81222\AppData\Local\Packages\CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc\LocalState\rootfs'
+}
+
 winpath()
 {
   path=$1
   [[ -z ${path} ]] && path="."
+
+  root=$2
+  [[ -z ${root} ]] && root=$( winroot )
 
   if test ${HOST_IS_CYGWIN}
   then
@@ -823,43 +841,153 @@ winpath()
 
     # intelligently converts a given unix WSL path to its physical Windows path
     # by inspecting symlinks and mount points.
-    abs=$( readlink -f "$path" )
+    abs=$( readlink -m "$path" )
     mount | perl -e'
 use strict;
 use warnings;
-# use the following powershell script to obtain the WSL root fs path:
-#   (Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss | ForEach-Object {Get-ItemProperty $_.PSPath}) | select DistributionName,BasePath
-# powershell is -extremely- slow to invoke, so im hardcoding this for now.
-my $rootfs = q|C:\Users\G81222\AppData\Local\Packages\CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc\LocalState|;
-
-my ($D, $M, $P) = ("", "", shift);
+my ($D, $M, $R, $P) = ("", "", shift, shift);
 while (<>)
-{ 
+{
   s{^\s*|\s*$}{}g;
   my ($d, $m) = split m{ on | type \S+ \([^\)]*\)\s*$};
   ($D, $M) = ($d, $m)
     if length $m > length $M and $P =~ m{^\Q$m\E};
 }
-$D = $rootfs . $M if $D eq "rootfs" and $M eq "/";
+$D = $R . $M if $D eq "rootfs" and $M eq "/";
 $P =~ s{^\Q$M\E}{$D};
+$P =~ s{/+}{/}g;
 $P =~ s{/}{\\}g;
 print $P;
-' "$abs" 
+' "$root" "$abs"
 
   fi
 }
 
 if test ${HOST_IS_WSL}
 then
-bdiff ()
+fsbufpath()
 {
-    bc3_path='/mnt/c/andrew/bin/bcompare3/BComp.com';
-    if [[ $# -ge 2 ]]; then
-        lv=$( winpath "$1" );
-        rv=$( winpath "$2" );
-        echo "'$bc3_path' '$lv' '$rv'";
-        "$bc3_path" "$lv" "$rv";
+  # with WSL, you -cannot- write to the linux filesystem (e.g., winroot() above)
+  # from Windows. the changes either won't be seen on the linux side or the file
+  # and/or directories may become corrupt. this path serves as a scratch space
+  # that is safely writeable from linux -and- windows.
+  path="/mnt/c/andrew/tmp/wsl/fsbuf"
+  [[ -d "$path" ]] || mkdir -p "$path"
+  [[ -w "$path" ]] || chmod 755 "$path"
+  echo "$path"
+}
+
+bdiff()
+{
+  bc3_path='/mnt/c/andrew/bin/bcompare3/BComp.com'
+  if [[ $# -ge 2 ]]
+  then
+
+    # determine the original paths in WSL context
+    orig_wsl_lp=$( readlink -e "$1" )
+    orig_wsl_rp=$( readlink -e "$2" )
+
+    # determine the original paths in Windows context
+    win_bc3=$( winpath "$bc3_path" )
+    orig_win_lp=$( winpath "$orig_wsl_lp" )
+    orig_win_rp=$( winpath "$orig_wsl_rp" )
+
+    # determine the buffer paths in WSL context
+    wsl_bp=$( fsbufpath )
+    buf_wsl_lp="${wsl_bp}${orig_wsl_lp}"
+    buf_wsl_rp="${wsl_bp}${orig_wsl_rp}"
+
+    # determine the buffer paths in Windows context
+    win_bp=$( winpath "$wsl_bp" )
+    buf_win_lp=$( winpath "$buf_wsl_lp" "$win_bp" )
+    buf_win_rp=$( winpath "$buf_wsl_rp" "$win_bp" )
+
+    echo
+    echo "copying targets to writeable filesystem ..."
+    pcp "$orig_wsl_lp" "$buf_wsl_lp"
+    echo
+    pcp "$orig_wsl_rp" "$buf_wsl_rp"
+    echo
+
+    echo
+    echo "starting diff session:"
+    echo
+    echo "    $win_bc3"
+    echo
+    echo "        $buf_win_lp"
+    echo "        $buf_win_rp"
+    "$bc3_path" "$buf_win_lp" "$buf_win_rp"
+
+    echo
+    echo "restoring targets to original filesystem ..."
+    pcp "$buf_wsl_lp" "$orig_wsl_lp"
+    echo
+    pcp "$buf_wsl_rp" "$orig_wsl_rp"
+    echo
+
+  fi
+}
+
+lnwin()
+{
+  local target=$1
+  local link=$2
+  if [[ -n $target ]]
+  then
+    if [[ ! -d "$target" ]]
+    then
+      echo "error: NTFS junctions can only be created for directories"
+      return 1
     fi
+    if [[ -z $link ]] || [[ $link == "" ]]
+    then
+      link=$( basename "$target" )
+    fi
+    if [[ -e "$link" ]]
+    then
+      echo "error: $link: file already exists"
+      return 2
+    fi
+    target=$( winpath "$target" )
+    link=$( winpath "$link" )
+
+    junction64.exe -nobanner "$link" "$target"
+
+    rc=$?
+    if [[ $rc -ne 0 ]]
+    then
+      echo "error($rc): failed to created junction"
+      return $rc
+    fi
+  else
+    cat <<__USAGE_EOF__
+create NTFS junctions (directory symbolic links) in the same functional
+spirit as POSIX ln(1).
+
+USAGE
+
+  $ lnwin target [link]
+
+  creates a junction at path "link" pointing to path "target".
+  if "link" is not provided, the basename of "target" in the
+  current working directory is used instead.
+
+NOTE
+
+  while NTFS starting with Windows 2000 supports junctions, Windows
+  itself does not come with any tools to create them. the "junction"
+  command was retired from Windows 10, and must instead be obtained
+  manually from the SysInternals package here:
+
+    https://docs.microsoft.com/en-us/sysinternals/downloads/junction
+
+  more info can be obtained from the following answer (the MS KB
+  reference listed no longer exists):
+
+    https://superuser.com/a/1020825
+
+__USAGE_EOF__
+  fi
 }
 fi
 
@@ -892,7 +1020,7 @@ enum-colors()
   (
     x=`tput op` y=`printf %76s`
     for i in {0..256}
-    do 
+    do
       o=00$i
       echo -e ${o:${#o}-3:3} `tput setaf $i;tput setab $i`${y// /=}$x
     done

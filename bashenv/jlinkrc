@@ -2,12 +2,12 @@
 
 # ------------------------------------------------------------------------------
 #
-#  functions and environment variables for using the Segger J-Link GDB SWD 
+#  functions and environment variables for using the Segger J-Link GDB SWD
 #  debugger. the serial number can be found printed on top of the device.
 #
 #  developed on and for Ubuntu, the J-Link EDU Mini, and an array of Adafruit
 #  microcontrollers based on ARM Cortex M0 and M4 (SAMD) chipsets. should
-#  probably work with most older Arduino-compatible (AVR) targets such as 
+#  probably work with most older Arduino-compatible (AVR) targets such as
 #  ATmega328, ATtiny85, etc. -- but I certainly haven't tested most of them.
 #
 #  verify the paths and options below.
@@ -23,8 +23,8 @@
 #       scripts with 2 paramters: (a) the path to the compiled ELF executable,
 #       and (b) the name of the target processor core.
 #
-#       the path can be determined automatically based on file last mod (MTIME) 
-#       time and the default build path (defined with the arduino_build_* vars 
+#       the path can be determined automatically based on file last mod (MTIME)
+#       time and the default build path (defined with the arduino_build_* vars
 #       below) as well as the processor core, given a string pattern describing
 #       the common name of the board.
 #
@@ -50,7 +50,7 @@ arduino_build_bin_suffix=".ino.elf"
 commander_bin="JLinkExe"
 gdbserver_bin="JLinkGDBServer"
 
-gdb_bin=$( which gdb-multiarch ) 
+gdb_bin=$( which gdb-multiarch )
 gdb_bin_init="/home/andrew/Development/gdb/gdb-dashboard/.gdbinit"
 
 cgdb_bin=$( which cgdb )
@@ -153,7 +153,7 @@ jlink-gdb()
   echo "  NOTE: redirect gdb-dashboard output to separate terminal:"
   echo "    >>> dashboard -output /dev/pts/<TTY#>"
   echo "--------"
-  $gdbcmd 
+  $gdbcmd
   rm -f "$gdbinit" # clean up, remove the init file
 }
 
@@ -178,7 +178,7 @@ newest-arduino-build-dir()
 newest-arduino-build-elf()
 {
   # looks at all of the compiled ELFs' MTIMEs to determine which was actually
-  # compiled most recently. 
+  # compiled most recently.
 
   # -maxdepth 2 because the compiled ELF should always be in the root of one
   # of the build dirs, which are themselves 1 level below the find root.
@@ -195,7 +195,7 @@ __jlink-target-device()
   else
     read -re -a token -p "target device or CPU core: "
   fi
-  
+
   core=$( perl <( cat <<"PL"
 # this script accepts as input the name of an MCU board and prints the name of
 # its processor core. this translation is intended for use when configuring

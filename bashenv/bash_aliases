@@ -66,9 +66,20 @@ alias      syncdirs='rsync -avhu --progress'
 alias          rscp='rsync -rave ssh --progress'
 alias       finddos="grep -IUlr $'\r'"
 
-test ${HOST_IS_MACOS}                                                          \
-  && alias    bdiff='bcomp'                                                    \
-  || alias    bdiff='bcompare'
+if test ${HOST_IS_MACOS}
+then
+  alias       bdiff='bcomp'
+elif test ${HOST_IS_WSL}
+then
+  # for WSL, bdiff is defined in bash_functions
+  if alias bdiff 2>/dev/null
+  then
+    unalias bdiff
+  fi
+  alias         cmd='cmd.exe /c'
+else
+  alias       bdiff='bcompare'
+fi
 alias         sdiff='sdiff -w$(tput cols)'
 
 alias     systemctl='systemctl --no-pager'
